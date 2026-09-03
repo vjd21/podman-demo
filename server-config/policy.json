@@ -1,0 +1,25 @@
+{
+  "default": [
+    {
+      "type": "reject"
+    }
+  ],
+  "transports": {
+    "docker": {
+      "148737623247.dkr.ecr.us-east-2.amazonaws.com/podman-demo": [
+        {
+          "type": "sigstoreSigned",
+          "fulcio": {
+            "caPath": "/etc/pki/containers/fulcio_v1.crt.pem",
+            "oidcIssuer": "https://token.actions.githubusercontent.com",
+            "subjectEmail": "https://github.com/vjd21/podman-demo/.github/workflows/deploy.yml@refs/heads/main"
+          },
+          "rekorPublicKeyPath": "/etc/pki/containers/rekor.pub",
+          "signedIdentity": {
+            "type": "matchRepository"
+          }
+        }
+      ]
+    }
+  }
+}

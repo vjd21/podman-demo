@@ -1,0 +1,60 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+# Required for GitHub OIDC to work with AWS and Fulcio
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-2
+  ECR_REGISTRY: 148737623247.dkr.ecr.us-east-2.amazonaws.com
+  ECR_REPOSITORY: podman-demo
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  build-and-sign:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@main
+
+      - name: Configure AWS credentials from OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::148737623247:role/role-githubaction
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Image with Podman
+        run: |
+          podman build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} \
+                       -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest .
+
+      - name: Push Image to ECR
+        run: |
+          podman push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          podman push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+
+      - name: Sign the image with Cosign
+        run: |
+          cosign sign --yes ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          cosign sign --yes ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+
+      - name: Deploy to EC2 via AWS SSM
+        run: |
+          aws ssm send-command \
+            --targets "Key=tag:Name,Values=e1087" \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=["sudo bash /usr/local/bin/update-service.sh ${{ env.IMAGE_TAG }}"]' \
+            --comment "Deploying podman-demo ${{ env.IMAGE_TAG }}"
