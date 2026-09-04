@@ -32,7 +32,7 @@ sudo cp sigstore-keys-update.timer /etc/systemd/system/
 echo "Reloading systemd and starting services..."
 sudo systemctl daemon-reload
 # Quadlet automatically generates the .service file from the .container file
-sudo systemctl enable --now podman-demo.service
+sudo systemctl restart podman-demo.service
 sudo systemctl enable --now sigstore-keys-update.timer
 
 echo "================================================================"
