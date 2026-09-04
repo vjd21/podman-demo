@@ -2,8 +2,8 @@
 set -e
 
 echo "Installing podman and utilities..."
-# Assuming Amazon Linux 2023 or RHEL-based
-sudo dnf install -y podman wget
+# Assuming Ubuntu/Debian-based
+sudo apt-get update && sudo apt-get install -y podman wget
 
 echo "Setting up Sigstore trust root (Fulcio CA and Rekor Pub)..."
 sudo mkdir -p /etc/pki/containers/
