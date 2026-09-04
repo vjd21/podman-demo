@@ -49,10 +49,17 @@ jobs:
         run: |
           cosign sign --yes --registry-referrers-mode=legacy ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
 
-      - name: Deploy to EC2 via AWS SSM
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Ansible and dependencies
         run: |
-          aws ssm send-command \
-            --targets "Key=tag:Name,Values=e1087" \
-            --document-name "AWS-RunShellScript" \
-            --parameters 'commands=["sudo bash /usr/local/bin/update-service.sh ${{ env.IMAGE_TAG }}"]' \
-            --comment "Deploying podman-demo ${{ env.IMAGE_TAG }}"
+          python -m pip install --upgrade pip
+          pip install ansible boto3 botocore
+          ansible-galaxy collection install amazon.aws
+
+      - name: Deploy via Ansible over SSM
+        run: |
+          ansible-playbook -i ansible/aws_ec2.yml ansible/deploy.yml -e "new_git_sha=${{ env.IMAGE_TAG }}"

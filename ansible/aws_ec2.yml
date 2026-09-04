@@ -1,0 +1,8 @@
+plugin: amazon.aws.aws_ec2
+regions:
+  - us-east-2
+filters:
+  tag:Name: e1087
+compose:
+  ansible_connection: "'amazon.aws.aws_ssm'"
+  ansible_aws_ssm_region: "'us-east-2'"
