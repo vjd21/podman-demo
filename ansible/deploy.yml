@@ -3,9 +3,20 @@
   hosts: all
   gather_facts: false
   tasks:
-    - name: Update Quadlet Image Tag
+    - name: Create Quadlet Service File
       shell: |
-        sudo sed -i "s|^Image=.*|Image=148737623247.dkr.ecr.us-east-2.amazonaws.com/podman-demo:{{ new_git_sha }}|g" /etc/containers/systemd/podman-demo.container
+        cat << 'EOF' | sudo tee /etc/containers/systemd/podman-demo.container
+        [Unit]
+        Description=Podman Security Demo Container
+        After=network-online.target
+
+        [Container]
+        Image=148737623247.dkr.ecr.us-east-2.amazonaws.com/podman-demo:{{ new_git_sha }}
+        PublishPort=8080:80
+
+        [Install]
+        WantedBy=default.target
+        EOF
       
     - name: Upload Podman Configs to tmp
       copy:
@@ -24,7 +35,8 @@
       shell: |
         sudo aws ecr get-login-password --region us-east-2 | sudo podman login --username AWS --password-stdin 148737623247.dkr.ecr.us-east-2.amazonaws.com
       
-    - name: Restart Podman application
+    - name: Start Podman application
       shell: |
         sudo systemctl daemon-reload
-        sudo systemctl restart podman-demo
+        sudo systemctl stop podman-demo.service || true
+        sudo systemctl start podman-demo.service
