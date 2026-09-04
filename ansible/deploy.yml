@@ -2,7 +2,6 @@
 - name: Deploy Podman Application
   hosts: all
   gather_facts: false
-  become: yes
   tasks:
     - name: Ensure configuration directory exists
       file:
