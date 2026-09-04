@@ -18,7 +18,7 @@
         After=network-online.target
 
         [Service]
-        ExecStartPre=/usr/local/bin/cosign verify --certificate-identity "https://github.com/vjd21/podman-demo/.github/workflows/deploy.yml@refs/heads/main" --certificate-oidc-issuer "https://token.actions.githubusercontent.com" 148737623247.dkr.ecr.us-east-2.amazonaws.com/podman-demo:{{ new_git_sha }}
+        ExecStartPre=/usr/bin/env REGISTRY_AUTH_FILE=/root/.docker/config.json /usr/local/bin/cosign verify --certificate-identity "https://github.com/vjd21/podman-demo/.github/workflows/deploy.yml@refs/heads/main" --certificate-oidc-issuer "https://token.actions.githubusercontent.com" 148737623247.dkr.ecr.us-east-2.amazonaws.com/podman-demo:{{ new_git_sha }}
 
         [Container]
         Image=148737623247.dkr.ecr.us-east-2.amazonaws.com/podman-demo:{{ new_git_sha }}
