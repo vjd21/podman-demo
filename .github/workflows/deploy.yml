@@ -1,9 +1,6 @@
 name: Build and Deploy
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 # Required for GitHub OIDC to work with AWS and Fulcio
