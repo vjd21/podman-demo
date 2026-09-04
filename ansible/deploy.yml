@@ -12,7 +12,7 @@
 
         [Container]
         Image=148737623247.dkr.ecr.us-east-2.amazonaws.com/podman-demo:{{ new_git_sha }}
-        PublishPort=8080:80
+        PublishPort=8081:80
 
         [Install]
         WantedBy=default.target
