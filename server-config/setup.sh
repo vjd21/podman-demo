@@ -15,10 +15,6 @@ sudo mkdir -p /etc/containers/registries.d/
 sudo cp policy.json /etc/containers/policy.json
 sudo cp registries.yaml /etc/containers/registries.d/podman-demo.yaml
 
-echo "Setting up initial Environment File..."
-sudo mkdir -p /etc/podman-demo
-echo "APP_IMAGE=148737623247.dkr.ecr.us-east-2.amazonaws.com/podman-demo:latest" | sudo tee /etc/podman-demo/image.env
-
 echo "Setting up Quadlet..."
 sudo mkdir -p /etc/containers/systemd/
 sudo cp podman-demo.container /etc/containers/systemd/

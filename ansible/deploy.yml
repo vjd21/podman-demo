@@ -3,12 +3,9 @@
   hosts: all
   gather_facts: false
   tasks:
-    - name: Ensure configuration directory exists
-      shell: sudo mkdir -p /etc/podman-demo
-
-    - name: Update environment file
+    - name: Update Quadlet Image Tag
       shell: |
-        echo "APP_IMAGE=148737623247.dkr.ecr.us-east-2.amazonaws.com/podman-demo:{{ new_git_sha }}" | sudo tee /etc/podman-demo/image.env
+        sudo sed -i "s|^Image=.*|Image=148737623247.dkr.ecr.us-east-2.amazonaws.com/podman-demo:{{ new_git_sha }}|g" /etc/containers/systemd/podman-demo.container
       
     - name: Authenticate Podman with AWS ECR
       shell: |

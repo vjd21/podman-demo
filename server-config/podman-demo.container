@@ -3,8 +3,7 @@ Description=Podman Security Demo Container
 After=network-online.target
 
 [Container]
-EnvironmentFile=/etc/podman-demo/image.env
-Image=${APP_IMAGE}
+Image=148737623247.dkr.ecr.us-east-2.amazonaws.com/podman-demo:latest
 PublishPort=8080:80
 
 [Install]
