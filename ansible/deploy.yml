@@ -3,12 +3,22 @@
   hosts: all
   gather_facts: false
   tasks:
+    - name: Install Cosign
+      shell: |
+        if ! command -v cosign &> /dev/null; then
+          sudo wget -O /usr/local/bin/cosign https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
+          sudo chmod +x /usr/local/bin/cosign
+        fi
+
     - name: Create Quadlet Service File
       shell: |
         cat << 'EOF' | sudo tee /etc/containers/systemd/podman-demo.container
         [Unit]
         Description=Podman Security Demo Container
         After=network-online.target
+
+        [Service]
+        ExecStartPre=/usr/local/bin/cosign verify --certificate-identity "https://github.com/vjd21/podman-demo/.github/workflows/deploy.yml@refs/heads/main" --certificate-oidc-issuer "https://token.actions.githubusercontent.com" 148737623247.dkr.ecr.us-east-2.amazonaws.com/podman-demo:{{ new_git_sha }}
 
         [Container]
         Image=148737623247.dkr.ecr.us-east-2.amazonaws.com/podman-demo:{{ new_git_sha }}
