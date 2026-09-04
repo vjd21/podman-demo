@@ -7,9 +7,13 @@
       shell: |
         sudo sed -i "s|^Image=.*|Image=148737623247.dkr.ecr.us-east-2.amazonaws.com/podman-demo:{{ new_git_sha }}|g" /etc/containers/systemd/podman-demo.container
       
-    - name: Deploy Podman Policy
-      shell: |
-        sudo cp /home/ubuntu/podman-demo/server-config/policy.json /etc/containers/policy.json
+    - name: Upload Podman Policy to tmp
+      copy:
+        src: ../server-config/policy.json
+        dest: /tmp/policy.json
+
+    - name: Apply Podman Policy
+      shell: sudo mv /tmp/policy.json /etc/containers/policy.json
 
     - name: Authenticate Podman with AWS ECR
       shell: |
