@@ -2,29 +2,19 @@
 - name: Deploy Podman Application
   hosts: all
   gather_facts: false
-  become: yes
   tasks:
     - name: Ensure configuration directory exists
-      file:
-        path: /etc/podman-demo
-        state: directory
-        mode: '0755'
+      shell: sudo mkdir -p /etc/podman-demo
 
     - name: Update environment file
-      copy:
-        dest: /etc/podman-demo/image.env
-        content: |
-          APP_IMAGE=148737623247.dkr.ecr.us-east-2.amazonaws.com/podman-demo:{{ new_git_sha }}
-        owner: root
-        group: root
-        mode: '0644'
-
+      shell: |
+        echo "APP_IMAGE=148737623247.dkr.ecr.us-east-2.amazonaws.com/podman-demo:{{ new_git_sha }}" | sudo tee /etc/podman-demo/image.env
+      
     - name: Authenticate Podman with AWS ECR
       shell: |
-        aws ecr get-login-password --region us-east-2 | podman login --username AWS --password-stdin 148737623247.dkr.ecr.us-east-2.amazonaws.com
+        sudo aws ecr get-login-password --region us-east-2 | sudo podman login --username AWS --password-stdin 148737623247.dkr.ecr.us-east-2.amazonaws.com
       
     - name: Restart Podman application
-      systemd:
-        daemon_reload: yes
-        name: podman-demo
-        state: restarted
+      shell: |
+        sudo systemctl daemon-reload
+        sudo systemctl restart podman-demo
