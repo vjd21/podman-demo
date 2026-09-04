@@ -44,7 +44,7 @@ jobs:
 
       - name: Sign the image with Cosign
         run: |
-          cosign sign --yes ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          cosign sign --yes --registry-referrers-mode=legacy ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
