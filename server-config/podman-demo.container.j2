@@ -1,0 +1,21 @@
+[Unit]
+Description=Podman Security Demo Container
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStartPre=/usr/bin/env REGISTRY_AUTH_FILE=/root/.docker/config.json /usr/local/bin/cosign verify --certificate-identity "https://github.com/vjd21/podman-demo/.github/workflows/deploy.yml@refs/heads/main" --certificate-oidc-issuer "https://token.actions.githubusercontent.com" {{ new_image_ref }}
+
+[Container]
+Image={{ new_image_ref }}
+PublishPort=8081:80
+NoNewPrivileges=true
+DropCapability=all
+AddCapability=NET_BIND_SERVICE
+ReadOnly=true
+Tmpfs=/var/cache/nginx
+Tmpfs=/tmp
+Tmpfs=/run
+
+[Install]
+WantedBy=default.target

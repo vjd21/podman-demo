@@ -15,9 +15,8 @@ sudo mkdir -p /etc/containers/registries.d/
 sudo cp policy.json /etc/containers/policy.json
 sudo cp registries.yaml /etc/containers/registries.d/podman-demo.yaml
 
-echo "Setting up Quadlet..."
+echo "Setting up Quadlet directory..."
 sudo mkdir -p /etc/containers/systemd/
-sudo cp podman-demo.container /etc/containers/systemd/
 
 echo "Setting up Sigstore Keys Update Timer..."
 sudo cp update-sigstore-keys.sh /usr/local/bin/
@@ -25,15 +24,15 @@ sudo chmod +x /usr/local/bin/update-sigstore-keys.sh
 sudo cp sigstore-keys-update.service /etc/systemd/system/
 sudo cp sigstore-keys-update.timer /etc/systemd/system/
 
-echo "Reloading systemd and starting services..."
+echo "Reloading systemd and enabling services..."
 sudo systemctl daemon-reload
-# Quadlet automatically generates the .service file from the .container file
-sudo systemctl restart podman-demo.service
 sudo systemctl enable --now sigstore-keys-update.timer
 
 echo "================================================================"
-echo "Setup complete! "
-echo "Podman will pull the image, verify its keyless signature"
-echo "against the GitHub Actions OIDC identity, and run it via Quadlet."
-echo "You can check the status with: sudo systemctl status podman-demo"
+echo "Host bootstrap complete!"
+echo "The podman-demo.container quadlet unit is not installed by this"
+echo "script -- it is rendered and deployed by the Ansible playbook"
+echo "(ansible/deploy.yml) on every pipeline run, pinned to the image"
+echo "digest that was just built, signed, and verified."
+echo "Run the GitHub Actions 'Build and Deploy' workflow next to deploy."
 echo "================================================================"

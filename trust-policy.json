@@ -12,10 +12,7 @@
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": [
-            "repo:vjd21/*",
-            "repo:vjd21@*/*"
-          ]
+          "token.actions.githubusercontent.com:sub": "repo:vjd21/podman-demo:ref:refs/heads/main"
         }
       }
     }

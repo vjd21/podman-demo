@@ -4,30 +4,32 @@
   gather_facts: false
   tasks:
     - name: Install Cosign
+      vars:
+        cosign_version: "v3.1.3"
       shell: |
-        if ! command -v cosign &> /dev/null; then
-          sudo wget -O /usr/local/bin/cosign https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
-          sudo chmod +x /usr/local/bin/cosign
+        set -euo pipefail
+        if command -v cosign &> /dev/null && cosign version 2>/dev/null | grep -q "{{ cosign_version }}"; then
+          exit 0
         fi
+        cd /tmp
+        curl -fsSL -O https://github.com/sigstore/cosign/releases/download/{{ cosign_version }}/cosign-linux-amd64
+        curl -fsSL -O https://github.com/sigstore/cosign/releases/download/{{ cosign_version }}/cosign_checksums.txt
+        sha256sum --ignore-missing -c cosign_checksums.txt
+        sudo install -m 0755 cosign-linux-amd64 /usr/local/bin/cosign
+        rm -f cosign-linux-amd64 cosign_checksums.txt
+      args:
+        executable: /bin/bash
 
-    - name: Create Quadlet Service File
+    - name: Render Quadlet Service File
+      template:
+        src: ../server-config/podman-demo.container.j2
+        dest: /tmp/podman-demo.container
+        mode: "0644"
+
+    - name: Install Quadlet Service File
       shell: |
-        cat << 'EOF' | sudo tee /etc/containers/systemd/podman-demo.container
-        [Unit]
-        Description=Podman Security Demo Container
-        After=network-online.target
+        sudo mv /tmp/podman-demo.container /etc/containers/systemd/podman-demo.container
 
-        [Service]
-        ExecStartPre=/usr/bin/env REGISTRY_AUTH_FILE=/root/.docker/config.json /usr/local/bin/cosign verify --certificate-identity "https://github.com/vjd21/podman-demo/.github/workflows/deploy.yml@refs/heads/main" --certificate-oidc-issuer "https://token.actions.githubusercontent.com" 148737623247.dkr.ecr.us-east-2.amazonaws.com/podman-demo:{{ new_git_sha }}
-
-        [Container]
-        Image=148737623247.dkr.ecr.us-east-2.amazonaws.com/podman-demo:{{ new_git_sha }}
-        PublishPort=8081:80
-
-        [Install]
-        WantedBy=default.target
-        EOF
-      
     - name: Upload Podman Configs to tmp
       copy:
         src: ../server-config/{{ item }}
