@@ -51,9 +51,31 @@
         sudo aws ecr get-login-password --region us-east-2 | sudo podman login --username AWS --password-stdin 148737623247.dkr.ecr.us-east-2.amazonaws.com
         sudo mkdir -p /root/.docker
         sudo aws ecr get-login-password --region us-east-2 | sudo podman login --authfile /root/.docker/config.json --username AWS --password-stdin 148737623247.dkr.ecr.us-east-2.amazonaws.com
-      
+
     - name: Start Podman application
+      register: start_result
+      ignore_errors: true
       shell: |
         sudo systemctl daemon-reload
         sudo systemctl stop podman-demo.service || true
         sudo systemctl start podman-demo.service
+
+    - name: Gather failure diagnostics
+      when: start_result is failed
+      register: diagnostics
+      changed_when: false
+      shell: |
+        echo "########## systemctl status ##########"
+        sudo systemctl status podman-demo.service --no-pager || true
+        echo "########## journalctl (last 100 lines) ##########"
+        sudo journalctl -u podman-demo.service -n 100 --no-pager || true
+
+    - name: Show failure diagnostics
+      when: start_result is failed
+      debug:
+        var: diagnostics.stdout_lines
+
+    - name: Fail the play if the deployment did not start
+      when: start_result is failed
+      fail:
+        msg: "podman-demo.service failed to start -- see diagnostics above for the root cause."
