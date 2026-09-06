@@ -53,5 +53,31 @@ jobs:
       - name: Print result
         run: |
           echo "Pushed and signed: ${{ env.GHCR_IMAGE }}@${{ steps.push.outputs.digest }}"
-          echo "After this run, go to the package's GitHub settings and set visibility to Public"
-          echo "so the server can pull it for the verification test without extra credentials."
+
+      - name: Configure a test podman policy for this runner only
+        run: |
+          sudo mkdir -p /etc/pki/containers
+          sudo cp server-config/cosign.pub /etc/pki/containers/cosign.pub
+          sudo tee /etc/containers/policy.json > /dev/null << POLEOF
+          {
+            "default": [{"type": "reject"}],
+            "transports": {
+              "docker": {
+                "${{ env.GHCR_IMAGE }}": [
+                  {
+                    "type": "sigstoreSigned",
+                    "keyPath": "/etc/pki/containers/cosign.pub",
+                    "signedIdentity": {"type": "matchRepository"}
+                  }
+                ]
+              }
+            }
+          }
+          POLEOF
+          sudo mkdir -p /etc/containers/registries.d
+          printf 'docker:\n  ghcr.io:\n    use-sigstore-attachments: true\n' | sudo tee /etc/containers/registries.d/ghcr-test.yaml
+
+      - name: Verify podman's native policy.json enforcement against GHCR
+        run: |
+          sudo podman pull ${{ env.GHCR_IMAGE }}@${{ steps.push.outputs.digest }}
+          echo "RESULT: podman's native policy.json verification PASSED against GHCR."
