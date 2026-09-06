@@ -44,9 +44,9 @@ jobs:
           podman push --digestfile digest.txt ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
           echo "digest=$(cat digest.txt)" >> "$GITHUB_OUTPUT"
 
-      - name: Sign the image with Cosign
+      - name: Sign the image with Cosign (keyless)
         run: |
-          cosign sign --key awskms:///alias/podman-demo-cosign --yes ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}@${{ steps.push.outputs.digest }}
+          cosign sign --yes ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}@${{ steps.push.outputs.digest }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
