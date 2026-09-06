@@ -37,11 +37,14 @@
       loop:
         - policy.json
         - registries.yaml
+        - cosign.pub
 
     - name: Apply Podman Configs
       shell: |
         sudo mv /tmp/policy.json /etc/containers/policy.json
         sudo mv /tmp/registries.yaml /etc/containers/registries.d/podman-demo.yaml
+        sudo mkdir -p /etc/pki/containers
+        sudo mv /tmp/cosign.pub /etc/pki/containers/cosign.pub
 
     - name: Authenticate Podman with AWS ECR
       shell: |

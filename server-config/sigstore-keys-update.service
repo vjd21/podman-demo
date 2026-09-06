@@ -1,7 +1,0 @@
-[Unit]
-Description=Update Sigstore Keys
-After=network-online.target
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/update-sigstore-keys.sh

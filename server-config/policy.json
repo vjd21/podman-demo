@@ -8,7 +8,11 @@
     "docker": {
       "148737623247.dkr.ecr.us-east-2.amazonaws.com/podman-demo": [
         {
-          "type": "insecureAcceptAnything"
+          "type": "sigstoreSigned",
+          "keyPath": "/etc/pki/containers/cosign.pub",
+          "signedIdentity": {
+            "type": "matchRepository"
+          }
         }
       ]
     }

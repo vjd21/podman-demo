@@ -46,7 +46,7 @@ jobs:
 
       - name: Sign the image with Cosign
         run: |
-          cosign sign --yes ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}@${{ steps.push.outputs.digest }}
+          cosign sign --key awskms:///alias/podman-demo-cosign --yes ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}@${{ steps.push.outputs.digest }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
