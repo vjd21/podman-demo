@@ -3,7 +3,17 @@ set -e
 
 echo "Installing podman and utilities..."
 # Assuming Ubuntu/Debian-based
-sudo apt-get update && sudo apt-get install -y podman wget curl
+sudo apt-get update && sudo apt-get install -y podman wget curl unzip
+
+echo "Installing AWS CLI..."
+if ! command -v aws &> /dev/null; then
+  cd /tmp
+  curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip
+  unzip -q awscliv2.zip
+  sudo ./aws/install
+  rm -rf awscliv2.zip aws
+  cd -
+fi
 
 echo "Installing cosign..."
 COSIGN_VERSION="v3.1.3"
