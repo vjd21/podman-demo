@@ -38,9 +38,14 @@ jobs:
         id: build
         working-directory: packer
         run: |
+          set -o pipefail
           packer build -machine-readable . | tee build.log
           AMI_LINE=$(grep ',artifact,0,id,' build.log | tail -1)
           AMI_ID=$(echo "$AMI_LINE" | cut -d, -f6 | cut -d: -f2)
+          if [ -z "$AMI_ID" ]; then
+            echo "No AMI id found in packer output" >&2
+            exit 1
+          fi
           echo "ami_id=$AMI_ID" >> "$GITHUB_OUTPUT"
 
       - name: Print result
