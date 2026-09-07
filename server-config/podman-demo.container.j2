@@ -12,6 +12,7 @@ PublishPort=8081:80
 NoNewPrivileges=true
 ReadOnly=true
 SecurityLabelDisable=true
+PodmanArgs=--security-opt apparmor=unconfined
 Tmpfs=/var/cache/nginx
 Tmpfs=/tmp
 Tmpfs=/run
