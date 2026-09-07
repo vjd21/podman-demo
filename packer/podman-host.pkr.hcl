@@ -59,21 +59,17 @@ build {
     destination = "/tmp/policy.json"
   }
 
+  provisioner "file" {
+    source      = "../server-config/setup.sh"
+    destination = "/tmp/setup.sh"
+  }
+
   provisioner "shell" {
     inline = [
       "sudo mkdir -p /tmp/server-config",
       "sudo mv /tmp/policy.json /tmp/server-config/policy.json",
-    ]
-  }
-
-  provisioner "file" {
-    source      = "../server-config/setup.sh"
-    destination = "/tmp/server-config/setup.sh"
-  }
-
-  provisioner "shell" {
-    inline = [
-      "chmod +x /tmp/server-config/setup.sh",
+      "sudo mv /tmp/setup.sh /tmp/server-config/setup.sh",
+      "sudo chmod +x /tmp/server-config/setup.sh",
       "cd /tmp/server-config && ./setup.sh",
     ]
   }
