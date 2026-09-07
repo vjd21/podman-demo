@@ -2,6 +2,11 @@ name: Build and Deploy
 
 on:
   workflow_dispatch:
+    inputs:
+      instance_name:
+        description: "Name tag of the EC2 instance to deploy to (matches the Terraform instance_name used to create it)."
+        required: true
+        type: string
 
 # Required for GitHub OIDC to work with AWS and Fulcio
 permissions:
@@ -58,6 +63,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install ansible boto3 botocore
           ansible-galaxy collection install amazon.aws
+
+      - name: Target the requested instance
+        run: |
+          sed -i "s/tag:Name: .*/tag:Name: ${{ inputs.instance_name }}/" ansible/aws_ec2.yml
 
       - name: Deploy via Ansible over SSM
         run: |

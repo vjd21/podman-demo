@@ -30,18 +30,14 @@
       shell: |
         sudo mv /tmp/podman-demo.container /etc/containers/systemd/podman-demo.container
 
-    - name: Upload Podman Configs to tmp
+    - name: Upload Podman Config to tmp
       copy:
-        src: ../server-config/{{ item }}
-        dest: /tmp/{{ item }}
-      loop:
-        - policy.json
-        - registries.yaml
+        src: ../server-config/policy.json
+        dest: /tmp/policy.json
 
-    - name: Apply Podman Configs
+    - name: Apply Podman Config
       shell: |
         sudo mv /tmp/policy.json /etc/containers/policy.json
-        sudo mv /tmp/registries.yaml /etc/containers/registries.d/podman-demo.yaml
 
     - name: Authenticate Podman with AWS ECR
       shell: |

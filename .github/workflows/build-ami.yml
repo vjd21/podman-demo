@@ -1,0 +1,49 @@
+name: Build Golden AMI (Packer)
+
+on:
+  workflow_dispatch:
+
+# Uses infra-provision-role (separate from deploy-role) since building AMIs
+# needs EC2/AMI lifecycle permissions unrelated to app deployment.
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-2
+
+jobs:
+  build-ami:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials from OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::148737623247:role/infra-provision-role
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install Packer
+        uses: hashicorp/setup-packer@ce93c3c08a6c2ff2275bf4b54ff0d9a75f6c9789 # v3.4.0
+        with:
+          version: "latest"
+
+      - name: Packer init
+        working-directory: packer
+        run: packer init .
+
+      - name: Packer build
+        id: build
+        working-directory: packer
+        run: |
+          packer build -machine-readable . | tee build.log
+          AMI_LINE=$(grep ',artifact,0,id,' build.log | tail -1)
+          AMI_ID=$(echo "$AMI_LINE" | cut -d, -f6 | cut -d: -f2)
+          echo "ami_id=$AMI_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Print result
+        run: |
+          echo "Built AMI: ${{ steps.build.outputs.ami_id }}"
+          echo "Pass this as the ami_id input to the 'Provision EC2 (Terraform)' workflow."

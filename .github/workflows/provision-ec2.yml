@@ -1,0 +1,83 @@
+name: Provision EC2 (Terraform)
+
+on:
+  workflow_dispatch:
+    inputs:
+      instance_name:
+        description: "Name tag for the new EC2 instance -- must match what you'll use in the aws_ec2.yml filter / deploy.yml input to target it."
+        required: true
+        type: string
+      ami_id:
+        description: "AMI id to launch (e.g. output of the Build Golden AMI workflow). Leave blank to use the default in variables.tf."
+        required: false
+        type: string
+      action:
+        description: "Terraform action to run."
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+        default: plan
+
+# Uses infra-provision-role (separate from deploy-role) -- creating/destroying
+# EC2 instances is a different privilege tier than app deployment.
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-2
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials from OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::148737623247:role/infra-provision-role
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Build var args
+        id: vars
+        working-directory: terraform
+        run: |
+          ARGS="-var=instance_name=${{ inputs.instance_name }}"
+          if [ -n "${{ inputs.ami_id }}" ]; then
+            ARGS="$ARGS -var=ami_id=${{ inputs.ami_id }}"
+          fi
+          echo "args=$ARGS" >> "$GITHUB_OUTPUT"
+
+      - name: Terraform plan
+        if: inputs.action == 'plan'
+        working-directory: terraform
+        run: terraform plan ${{ steps.vars.outputs.args }}
+
+      - name: Terraform apply
+        if: inputs.action == 'apply'
+        working-directory: terraform
+        run: terraform apply -auto-approve ${{ steps.vars.outputs.args }}
+
+      - name: Terraform destroy
+        if: inputs.action == 'destroy'
+        working-directory: terraform
+        run: terraform destroy -auto-approve ${{ steps.vars.outputs.args }}
+
+      - name: Print outputs
+        if: inputs.action == 'apply'
+        working-directory: terraform
+        run: terraform output
