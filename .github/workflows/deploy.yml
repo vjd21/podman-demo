@@ -61,9 +61,12 @@ jobs:
       # natively at pull time, which it cannot do for the keyless workflow identity.
       - name: Sign the image with Cosign (static key)
         env:
-          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          # Stored base64-encoded: a single-line secret cannot lose the PEM
+          # line breaks in transit, which yields "invalid pem block".
+          COSIGN_PRIVATE_KEY_B64: ${{ secrets.COSIGN_PRIVATE_KEY_B64 }}
           COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
         run: |
+          export COSIGN_PRIVATE_KEY="$(printf '%s' "$COSIGN_PRIVATE_KEY_B64" | base64 -d)"
           cosign sign --yes --key env://COSIGN_PRIVATE_KEY ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_REPOSITORY }}@${{ steps.push.outputs.digest }}
 
       - name: Setup Python
