@@ -39,12 +39,6 @@
       shell: |
         sudo mv /tmp/policy.json /etc/containers/policy.json
 
-    - name: Authenticate Podman with AWS ECR
-      shell: |
-        sudo aws ecr get-login-password --region us-east-2 | sudo podman login --username AWS --password-stdin 148737623247.dkr.ecr.us-east-2.amazonaws.com
-        sudo mkdir -p /root/.docker
-        sudo aws ecr get-login-password --region us-east-2 | sudo podman login --authfile /root/.docker/config.json --username AWS --password-stdin 148737623247.dkr.ecr.us-east-2.amazonaws.com
-
     - name: Start Podman application
       register: start_result
       ignore_errors: true

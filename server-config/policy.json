@@ -6,7 +6,7 @@
   ],
   "transports": {
     "docker": {
-      "148737623247.dkr.ecr.us-east-2.amazonaws.com/podman-demo": [
+      "ghcr.io/vjd21/podman-demo": [
         {
           "type": "sigstoreSigned",
           "fulcio": {

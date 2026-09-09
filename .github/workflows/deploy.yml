@@ -8,15 +8,16 @@ on:
         required: true
         type: string
 
-# Required for GitHub OIDC to work with AWS and Fulcio
+# Required for GitHub OIDC to work with AWS (SSM deploy) and Fulcio (cosign keyless)
 permissions:
   id-token: write
   contents: read
+  packages: write
 
 env:
   AWS_REGION: us-east-2
-  ECR_REGISTRY: 148737623247.dkr.ecr.us-east-2.amazonaws.com
-  ECR_REPOSITORY: podman-demo
+  GHCR_REGISTRY: ghcr.io
+  GHCR_REPOSITORY: vjd21/podman-demo
   IMAGE_TAG: ${{ github.sha }}
 
 jobs:
@@ -35,23 +36,23 @@ jobs:
           role-to-assume: arn:aws:iam::148737623247:role/deploy-role
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+      - name: Login to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | podman login ${{ env.GHCR_REGISTRY }} --username ${{ github.actor }} --password-stdin
 
       - name: Build Image with Podman
         run: |
-          podman build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} .
+          podman build -t ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_REPOSITORY }}:${{ env.IMAGE_TAG }} .
 
-      - name: Push Image to ECR
+      - name: Push Image to GHCR
         id: push
         run: |
-          podman push --digestfile digest.txt ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          podman push --digestfile digest.txt ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_REPOSITORY }}:${{ env.IMAGE_TAG }}
           echo "digest=$(cat digest.txt)" >> "$GITHUB_OUTPUT"
 
       - name: Sign the image with Cosign (keyless)
         run: |
-          cosign sign --yes ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}@${{ steps.push.outputs.digest }}
+          cosign sign --yes ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_REPOSITORY }}@${{ steps.push.outputs.digest }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -71,4 +72,4 @@ jobs:
       - name: Deploy via Ansible over SSM
         run: |
           ansible-playbook -i ansible/aws_ec2.yml ansible/deploy.yml \
-            -e "new_image_ref=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}@${{ steps.push.outputs.digest }}"
+            -e "new_image_ref=${{ env.GHCR_REGISTRY }}/${{ env.GHCR_REPOSITORY }}@${{ steps.push.outputs.digest }}"
