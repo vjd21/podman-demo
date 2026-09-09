@@ -4,10 +4,6 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-# THE security gate. podman's policy.json cannot express a keyless workflow identity
-# (its fulcio matcher only compares email SANs, and these certs carry a URI SAN), so
-# the check lives here. No "-" prefix: a non-zero exit aborts the unit and ExecStart
-# never runs. new_image_ref is an immutable digest, so what is verified is what runs.
 ExecStartPre=/usr/bin/env REGISTRY_AUTH_FILE=/root/.docker/config.json /usr/local/bin/cosign verify --certificate-identity "https://github.com/vjd21/podman-demo/.github/workflows/deploy.yml@refs/heads/main" --certificate-oidc-issuer "https://token.actions.githubusercontent.com" {{ new_image_ref }}
 
 [Container]

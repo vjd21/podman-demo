@@ -8,7 +8,12 @@
     "docker": {
       "ghcr.io/vjd21/podman-demo": [
         {
-          "type": "insecureAcceptAnything"
+          "type": "sigstoreSigned",
+          "keyPath": "/etc/containers/cosign.pub",
+          "signedIdentity": {
+            "type": "exactRepository",
+            "dockerRepository": "ghcr.io/vjd21/podman-demo"
+          }
         }
       ]
     }

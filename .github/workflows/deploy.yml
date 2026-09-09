@@ -8,8 +8,6 @@ on:
         required: true
         type: string
 
-# id-token is needed twice over: the AWS OIDC role for the SSM deploy, and the
-# Sigstore identity token cosign exchanges at Fulcio for a signing certificate.
 permissions:
   id-token: write
   contents: read
@@ -20,6 +18,7 @@ env:
   GHCR_REGISTRY: ghcr.io
   GHCR_REPOSITORY: vjd21/podman-demo
   IMAGE_TAG: ${{ github.sha }}
+  COSIGN_KMS_KEY: awskms:///alias/podman-demo-cosign
 
 jobs:
   build-and-sign:
@@ -28,12 +27,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Must match the version installed on the host by ansible/deploy.yml so the
-      # signature format written here is the format cosign verifies there.
       - name: Install Cosign
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         with:
-          cosign-release: 'v3.1.3'
+          cosign-release: 'v2.6.5'
 
       - name: Configure AWS credentials from OIDC
         uses: aws-actions/configure-aws-credentials@v4
@@ -41,7 +38,6 @@ jobs:
           role-to-assume: arn:aws:iam::148737623247:role/deploy-role
           aws-region: ${{ env.AWS_REGION }}
 
-      # Writes credentials to ~/.docker/config.json, which both podman and cosign read.
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -59,14 +55,25 @@ jobs:
           podman push --digestfile digest.txt ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_REPOSITORY }}:${{ env.IMAGE_TAG }}
           echo "digest=$(cat digest.txt)" >> "$GITHUB_OUTPUT"
 
-      # Keyless: the workflow's OIDC token is exchanged at Fulcio for a short-lived
-      # certificate and the signature is recorded in the public Rekor log. No signing
-      # key exists anywhere -- not in secrets, not in KMS, not on the host. Signs the
-      # immutable digest, never the tag.
       - name: Sign the image digest with Cosign (keyless)
         run: |
           cosign sign --yes \
             ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_REPOSITORY }}@${{ steps.push.outputs.digest }}
+
+      - name: Sign the image digest with Cosign (AWS KMS)
+        run: |
+          cosign sign --yes \
+            --key ${{ env.COSIGN_KMS_KEY }} \
+            ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_REPOSITORY }}@${{ steps.push.outputs.digest }}
+
+      - name: Verify the committed public key matches the KMS key
+        run: |
+          cosign public-key --key ${{ env.COSIGN_KMS_KEY }} > /tmp/kms.pub
+          if ! diff -q /tmp/kms.pub server-config/cosign.pub >/dev/null; then
+            echo "::error::server-config/cosign.pub does not match ${{ env.COSIGN_KMS_KEY }}."
+            echo "Re-export with: cosign public-key --key ${{ env.COSIGN_KMS_KEY }} > server-config/cosign.pub"
+            exit 1
+          fi
 
       - name: Setup Python
         uses: actions/setup-python@v5

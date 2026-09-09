@@ -17,19 +17,17 @@
       changed_when: false
       shell: podman --version | awk '{print $3}'
 
-    - name: Require a podman that supports Quadlet
+    - name: Require a podman that supports sigstoreSigned and Quadlet
       assert:
         that:
           - podman_version.stdout is version('4.4', '>=')
         fail_msg: >-
-          podman {{ podman_version.stdout }} does not support Quadlet
-          (.container units); 4.4 or newer is required.
+          podman {{ podman_version.stdout }} is too old; 4.4 or newer is required
+          for Quadlet units and the sigstoreSigned policy type.
 
-    # Must match the version the workflow signs with, so the signature format
-    # written in CI is the format verified here.
     - name: Install Cosign
       vars:
-        cosign_version: "v3.1.3"
+        cosign_version: "v2.6.5"
       shell: |
         set -euo pipefail
         if command -v cosign &> /dev/null && cosign version 2>/dev/null | grep -q "{{ cosign_version }}"; then
@@ -44,21 +42,40 @@
       args:
         executable: /bin/bash
 
+    - name: Upload Cosign public key to tmp
+      copy:
+        src: ../server-config/cosign.pub
+        dest: /tmp/cosign.pub
+        mode: "0644"
+
+    - name: Install Cosign public key
+      shell: |
+        sudo install -m 0644 /tmp/cosign.pub /etc/containers/cosign.pub
+        rm -f /tmp/cosign.pub
+
     - name: Upload Podman policy to tmp
       copy:
         src: ../server-config/policy.json
         dest: /tmp/policy.json
         mode: "0644"
 
-    # Deny-by-default: nothing outside ghcr.io/vjd21/podman-demo can be pulled at all.
-    # The signature check itself cannot live here -- see the Quadlet unit's ExecStartPre.
     - name: Apply Podman policy
       shell: |
         sudo install -m 0644 /tmp/policy.json /etc/containers/policy.json
         rm -f /tmp/policy.json
 
-    # The GHCR package is currently public, so pulls need no credentials. Pass
-    # -e ghcr_username=... -e ghcr_token=... to authenticate if it is made private.
+    - name: Upload sigstore attachment config to tmp
+      copy:
+        src: ../server-config/registries.d/ghcr.yaml
+        dest: /tmp/ghcr.yaml
+        mode: "0644"
+
+    - name: Apply sigstore attachment config
+      shell: |
+        sudo mkdir -p /etc/containers/registries.d
+        sudo install -m 0644 /tmp/ghcr.yaml /etc/containers/registries.d/ghcr.yaml
+        rm -f /tmp/ghcr.yaml
+
     - name: Authenticate Podman with GHCR
       when: ghcr_token is defined
       no_log: true
@@ -68,21 +85,20 @@
           --username "{{ ghcr_username }}" --password-stdin \
           --authfile /root/.docker/config.json
 
-    # Not a security gate (policy is an allow-list); this just surfaces network or
-    # auth failures before the running container is touched.
-    - name: Pre-pull the image
+    - name: Pull image (podman policy verifies the KMS signature)
       register: pull_result
       ignore_errors: true
       changed_when: pull_result.rc == 0
       shell: |
         sudo podman pull {{ new_image_ref }}
 
-    - name: Fail the play if the image could not be pulled
+    - name: Fail the play if the image did not pass policy enforcement
       when: pull_result is failed
       fail:
         msg: >-
-          Could not pull {{ new_image_ref }}. The previous container is untouched
-          and still running. Error: {{ pull_result.stderr | default('(no stderr)') }}
+          Refusing to deploy: {{ new_image_ref }} failed podman's signature policy.
+          The previous container is untouched and still running.
+          Error: {{ pull_result.stderr | default('(no stderr)') }}
 
     - name: Render Quadlet Service File
       template:
@@ -95,8 +111,6 @@
         sudo install -m 0644 /tmp/podman-demo.container /etc/containers/systemd/podman-demo.container
         rm -f /tmp/podman-demo.container
 
-    # ExecStartPre runs cosign verify here; if the signature or identity is wrong the
-    # unit fails and the container never starts.
     - name: Start the verified image
       register: start_result
       ignore_errors: true
