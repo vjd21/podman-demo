@@ -1,0 +1,25 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Packer -- build.log is written by the Build Golden AMI workflow
+build.log
+
+# Cosign / local key material -- never commit a private key.
+# deploy/host/cosign.pub is the KMS *public* half and IS tracked on purpose.
+*.key
+cosign.key
+*.pem
+
+# Editor / OS
+.DS_Store
+*.swp
+*~

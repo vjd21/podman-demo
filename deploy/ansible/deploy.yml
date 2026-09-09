@@ -44,7 +44,7 @@
 
     - name: Upload Cosign public key to tmp
       copy:
-        src: ../server-config/cosign.pub
+        src: ../host/cosign.pub
         dest: /tmp/cosign.pub
         mode: "0644"
 
@@ -55,7 +55,7 @@
 
     - name: Upload Podman policy to tmp
       copy:
-        src: ../server-config/policy.json
+        src: ../host/policy.json
         dest: /tmp/policy.json
         mode: "0644"
 
@@ -66,7 +66,7 @@
 
     - name: Upload sigstore attachment config to tmp
       copy:
-        src: ../server-config/registries.d/ghcr.yaml
+        src: ../host/registries.d/ghcr.yaml
         dest: /tmp/ghcr.yaml
         mode: "0644"
 
@@ -102,7 +102,7 @@
 
     - name: Render Quadlet Service File
       template:
-        src: ../server-config/podman-demo.container.j2
+        src: ../host/podman-demo.container.j2
         dest: /tmp/podman-demo.container
         mode: "0644"
 

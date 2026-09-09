@@ -55,22 +55,22 @@ build {
   sources = ["source.amazon-ebs.podman_host"]
 
   provisioner "file" {
-    source      = "../server-config/policy.json"
+    source      = "../../deploy/host/policy.json"
     destination = "/tmp/policy.json"
   }
 
   provisioner "file" {
-    source      = "../server-config/setup.sh"
+    source      = "../../deploy/host/setup.sh"
     destination = "/tmp/setup.sh"
   }
 
   provisioner "shell" {
     inline = [
-      "sudo mkdir -p /tmp/server-config",
-      "sudo mv /tmp/policy.json /tmp/server-config/policy.json",
-      "sudo mv /tmp/setup.sh /tmp/server-config/setup.sh",
-      "sudo chmod +x /tmp/server-config/setup.sh",
-      "cd /tmp/server-config && ./setup.sh",
+      "sudo mkdir -p /tmp/podman-host-setup",
+      "sudo mv /tmp/policy.json /tmp/podman-host-setup/policy.json",
+      "sudo mv /tmp/setup.sh /tmp/podman-host-setup/setup.sh",
+      "sudo chmod +x /tmp/podman-host-setup/setup.sh",
+      "cd /tmp/podman-host-setup && ./setup.sh",
     ]
   }
 }
