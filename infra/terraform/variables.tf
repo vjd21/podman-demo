@@ -1,5 +1,5 @@
 variable "instance_name" {
-  description = "Value for the EC2 instance's Name tag -- also used by ansible/aws_ec2.yml's dynamic inventory filter to target this instance for deploys."
+  description = "Value for the EC2 instance's Name tag -- also used by deploy/ansible/aws_ec2.yml's dynamic inventory filter to target this instance for deploys."
   type        = string
 }
 

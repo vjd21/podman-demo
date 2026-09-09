@@ -47,7 +47,7 @@ jobs:
 
       - name: Build Image with Podman
         run: |
-          podman build -t ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_REPOSITORY }}:${{ env.IMAGE_TAG }} .
+          podman build -f app/Containerfile -t ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_REPOSITORY }}:${{ env.IMAGE_TAG }} app
 
       - name: Push Image to GHCR
         id: push
@@ -69,9 +69,9 @@ jobs:
       - name: Verify the committed public key matches the KMS key
         run: |
           cosign public-key --key ${{ env.COSIGN_KMS_KEY }} > /tmp/kms.pub
-          if ! diff -q /tmp/kms.pub server-config/cosign.pub >/dev/null; then
-            echo "::error::server-config/cosign.pub does not match ${{ env.COSIGN_KMS_KEY }}."
-            echo "Re-export with: cosign public-key --key ${{ env.COSIGN_KMS_KEY }} > server-config/cosign.pub"
+          if ! diff -q /tmp/kms.pub deploy/host/cosign.pub >/dev/null; then
+            echo "::error::deploy/host/cosign.pub does not match ${{ env.COSIGN_KMS_KEY }}."
+            echo "Re-export with: cosign public-key --key ${{ env.COSIGN_KMS_KEY }} > deploy/host/cosign.pub"
             exit 1
           fi
 
@@ -88,9 +88,9 @@ jobs:
 
       - name: Target the requested instance
         run: |
-          sed -i "s/tag:Name: .*/tag:Name: ${{ inputs.instance_name }}/" ansible/aws_ec2.yml
+          sed -i "s/tag:Name: .*/tag:Name: ${{ inputs.instance_name }}/" deploy/ansible/aws_ec2.yml
 
       - name: Deploy via Ansible over SSM
         run: |
-          ansible-playbook -i ansible/aws_ec2.yml ansible/deploy.yml \
+          ansible-playbook -i deploy/ansible/aws_ec2.yml deploy/ansible/deploy.yml \
             -e "new_image_ref=${{ env.GHCR_REGISTRY }}/${{ env.GHCR_REPOSITORY }}@${{ steps.push.outputs.digest }}"

@@ -49,12 +49,12 @@ jobs:
           terraform_wrapper: false
 
       - name: Terraform init
-        working-directory: terraform
+        working-directory: infra/terraform
         run: terraform init
 
       - name: Build var args
         id: vars
-        working-directory: terraform
+        working-directory: infra/terraform
         run: |
           ARGS="-var=instance_name=${{ inputs.instance_name }}"
           if [ -n "${{ inputs.ami_id }}" ]; then
@@ -64,20 +64,20 @@ jobs:
 
       - name: Terraform plan
         if: inputs.action == 'plan'
-        working-directory: terraform
+        working-directory: infra/terraform
         run: terraform plan ${{ steps.vars.outputs.args }}
 
       - name: Terraform apply
         if: inputs.action == 'apply'
-        working-directory: terraform
+        working-directory: infra/terraform
         run: terraform apply -auto-approve ${{ steps.vars.outputs.args }}
 
       - name: Terraform destroy
         if: inputs.action == 'destroy'
-        working-directory: terraform
+        working-directory: infra/terraform
         run: terraform destroy -auto-approve ${{ steps.vars.outputs.args }}
 
       - name: Print outputs
         if: inputs.action == 'apply'
-        working-directory: terraform
+        working-directory: infra/terraform
         run: terraform output

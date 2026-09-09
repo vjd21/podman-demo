@@ -31,12 +31,12 @@ jobs:
           version: "latest"
 
       - name: Packer init
-        working-directory: packer
+        working-directory: infra/packer
         run: packer init .
 
       - name: Packer build
         id: build
-        working-directory: packer
+        working-directory: infra/packer
         run: |
           set -o pipefail
           packer build -machine-readable . | tee build.log
