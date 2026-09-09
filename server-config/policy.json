@@ -8,11 +8,7 @@
     "docker": {
       "ghcr.io/vjd21/podman-demo": [
         {
-          "type": "sigstoreSigned",
-          "keyData": "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFMDZDNFNQV0FLSHVtblR0K2htbGYyU0NHNW5jOQp1RzM5T2ZRbS9MeDlVdFpkTjMwbERVbzBDL2tUenBzdG02OTY3MEhFNHo3bDJVL0dCbjdxTHMzNzhBPT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==",
-          "signedIdentity": {
-            "type": "matchRepoDigestOrExact"
-          }
+          "type": "insecureAcceptAnything"
         }
       ]
     }
