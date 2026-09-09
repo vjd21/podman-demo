@@ -39,6 +39,19 @@
       shell: |
         sudo mv /tmp/policy.json /etc/containers/policy.json
 
+    - name: Upload Sigstore Attachment Config to tmp
+      copy:
+        src: ../server-config/registries.d/ghcr.yaml
+        dest: /tmp/ghcr.yaml
+
+    # Without this podman never reads cosign signatures at all
+    # (use-sigstore-attachments defaults to false) and every
+    # sigstoreSigned policy fails with "no signature exists".
+    - name: Apply Sigstore Attachment Config
+      shell: |
+        sudo mkdir -p /etc/containers/registries.d
+        sudo mv /tmp/ghcr.yaml /etc/containers/registries.d/ghcr.yaml
+
     - name: Start Podman application
       register: start_result
       ignore_errors: true

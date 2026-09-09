@@ -57,6 +57,15 @@ jobs:
         run: |
           cosign sign --yes ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_REPOSITORY }}@${{ steps.push.outputs.digest }}
 
+      # Second signature with a self-held key: podman's policy.json can verify this
+      # natively at pull time, which it cannot do for the keyless workflow identity.
+      - name: Sign the image with Cosign (static key)
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+        run: |
+          cosign sign --yes --key env://COSIGN_PRIVATE_KEY ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_REPOSITORY }}@${{ steps.push.outputs.digest }}
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
