@@ -1,0 +1,54 @@
+name: Pipeline
+run-name: "pipeline · ${{ inputs.environment || 'dev' }}"
+
+# The whole chain: custom image -> infrastructure -> application, each pipeline's
+# output passed as the next one's input. Each stage is also runnable on its own.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: string
+        default: dev
+      rebuild_custom_image:
+        description: "Bake a fresh custom image first. Off reuses the AMI already in Terraform."
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+  packages: write
+
+jobs:
+  custom-image:
+    if: inputs.rebuild_custom_image
+    uses: ./.github/workflows/1-custom-image.yml
+    with:
+      environment: ${{ inputs.environment }}
+    permissions:
+      id-token: write
+      contents: read
+
+  infrastructure:
+    needs: custom-image
+    # Runs whether or not the custom image was rebuilt.
+    if: always() && !cancelled() && (needs.custom-image.result == 'success' || needs.custom-image.result == 'skipped')
+    uses: ./.github/workflows/2-infra.yml
+    with:
+      environment: ${{ inputs.environment }}
+      ami_id: ${{ needs.custom-image.outputs.ami_id || '' }}
+    permissions:
+      id-token: write
+      contents: read
+
+  application:
+    needs: infrastructure
+    uses: ./.github/workflows/3-app.yml
+    with:
+      environment: ${{ inputs.environment }}
+      targets: ${{ needs.infrastructure.outputs.targets }}
+    permissions:
+      id-token: write
+      contents: read
+      packages: write

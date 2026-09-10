@@ -10,27 +10,82 @@ different layers, and either one failing stops the deploy.
 | Path | What lives there |
 |---|---|
 | `app/` | The application image: `Containerfile` and `index.html`. |
-| `infra/packer/` | Packer template that bakes the golden AMI (podman + cosign + policy pre-installed). |
-| `infra/terraform/` | Terraform for the EC2 host. S3 remote state, `use_lockfile` for locking. |
-| `infra/iam/` | `trust-policy.json` — the GitHub OIDC trust policy the CI roles assume. Reference copy; applied out of band, not by any workflow. |
-| `deploy/ansible/` | `deploy.yml` (the deploy playbook) and `aws_ec2.yml` (dynamic inventory over SSM). |
-| `deploy/host/` | Files installed onto the host: `policy.json`, `cosign.pub`, `registries.d/ghcr.yaml`, the `podman-demo.container.j2` Quadlet template, and `setup.sh` for AMI bake time. |
+| `infra/packer/` | Packer template that bakes the custom image (podman + cosign + policy pre-installed). |
+| `envs/` | One YAML file per environment (`dev.yaml`), listing that environment's tenants. |
+| `infra/terraform/` | The environment stack: one security group and one host per tenant, via `for_each`. S3 remote state, `use_lockfile` for locking. Separate state from the platform stack, so destroying the instance cannot take the CI roles or the signing key with it. |
+| `infra/terraform/platform/` | Account-wide: the GitHub OIDC provider, both CI roles and their trust policies, the cosign KMS key, and the least-privilege host instance profile. Adopts the existing hand-made resources via `import` blocks, so no bootstrap run and no console work. |
+| `deploy/ansible/` | `deploy.yml`, the deploy playbook. The SSM inventory is generated per tenant by the deploy workflow, not committed. |
+| `deploy/host/` | Files installed onto the host: `policy.json`, `registries.d/ghcr.yaml`, the `podman-demo.container.j2` Quadlet template, and `setup.sh` for AMI bake time. No key material — the cosign public key is exported from KMS at deploy time. |
 | `docs/` | Why keyless signing cannot be enforced by podman's `policy.json`, and how to tell the three stacked failure modes apart. |
-| `.github/workflows/` | The three workflows below. |
+| `.github/workflows/` | The four workflows below. |
 
-## Workflows
+## Pipelines
 
-All three are `workflow_dispatch` only. Run them in this order the first time:
+Three stages, each one's output passed as the next one's input, plus
+`pipeline.yml` which runs the chain end to end.
 
-1. **Build Golden AMI (Packer)** — `build-ami.yml`. Bakes an AMI from Ubuntu with podman,
-   the AWS CLI, cosign, and `policy.json` already in place. Prints the AMI id.
-2. **Provision EC2 (Terraform)** — `provision-ec2.yml`. Takes `instance_name`, an optional
-   `ami_id` (the output of step 1), and a `plan` / `apply` / `destroy` action.
-3. **Build and Deploy** — `deploy.yml`. Takes `instance_name` — it must match the Name tag
-   used in step 2, since that tag is how the Ansible dynamic inventory finds the host.
+| Stage | Takes | Gives |
+|---|---|---|
+| **1 · Custom Image** — `1-custom-image.yml` | — | `ami_id` |
+| **2 · Infrastructure** — `2-infra.yml` | `environment`, `ami_id` | `targets` |
+| **3 · Application** — `3-app.yml` | `environment`, `targets` | the running container |
 
-Steps 1 and 2 use `infra-provision-role`; step 3 uses `deploy-role`. Provisioning
-infrastructure and deploying an app are deliberately separate privilege tiers.
+Each stage is also runnable on its own with `workflow_dispatch`, so a code-only
+change is just stage 3 and a tenant added to `envs/dev.yaml` is stage 2 then 3.
+
+Stage 2 applies two stacks in order: the account-wide **platform** stack (OIDC
+provider, CI roles, cosign KMS key, host instance profile) and then the
+**environment** stack. They keep separate state.
+
+There are no secrets anywhere — not in the repository, not in GitHub. AWS access
+is OIDC, the signing key never leaves KMS, and GHCR is public so the host pulls
+unauthenticated. If a secret is ever genuinely needed it goes in AWS Secrets
+Manager, read at run time by whichever workload needs it through that workload's
+own IAM role. Nothing creates one today, so nothing is granted access to one.
+
+`bootstrap.yml` runs once, ever. `infra-provision-role` has no IAM write
+permissions and cannot grant them to itself, so that job borrows `deploy-role`
+— which still carries `AdministratorAccess` — and the platform apply's final act
+is detaching it. The hole closes itself, and the workflow cannot run again.
+Delete it afterwards.
+
+## Environments and tenants
+
+`envs/<name>.yaml` is one environment. Each has its own Terraform state key
+(`podman-demo/<name>/infra.tfstate`), so environments never share state.
+
+Tenants sit inside an environment and are separated by instance, security group
+and Name tag (`<environment>-<tenant>`) within a single AWS account. Adding one
+is a few lines in the environment file.
+
+```yaml
+tenants:
+  demo:
+    instance_type: t3.micro
+    port: 8081
+```
+
+Removing a tenant does **not** destroy it. `prevent_destroy` is set on the
+instances and stage 2 fails the run if the plan contains any deletion, so a bad
+merge or a revert cannot delete a live host. Tearing one down is deliberate.
+
+**Future:** one AWS account per tenant. That needs AWS Organizations, which this
+account is not part of today, so it is deliberately not built.
+
+## Build versioning
+
+Each run of **Build and Deploy** is `v1.0.<run_number>`, taken from the Actions run
+counter. The run title shows it (`v1.0.47 → e1087`), the image carries it as a tag and as
+`org.opencontainers.image.version`, and the job summary prints version, commit and digest
+together.
+
+The version tag is a handle for humans, not a deployment input. GHCR tags are mutable, so
+the pipeline signs the digest and the playbook refuses any `new_image_ref` without
+`@sha256:`. Both tags are pushed from one build and the workflow fails if they resolve to
+different digests — that would mean only one of them is covered by the signature.
+
+To move to real semver later, replace `IMAGE_VERSION` in `deploy.yml` with a value derived
+from git tags; nothing downstream depends on the `v1.0.N` shape.
 
 ## The two signature gates
 
@@ -58,22 +113,22 @@ Other invariants worth keeping:
 - Cosign must be **v2.x** everywhere. v3 writes OCI 1.1 referrers that containers/image
   cannot read, so the format written must be the format verified. CI
   (`.github/workflows/deploy.yml`) and the deploy playbook both pin `v2.6.5`.
-  **Known inconsistency:** `deploy/host/setup.sh` still pins `v3.1.3` at AMI bake time. The
-  playbook replaces it with `v2.6.5` on every deploy, so deploys work — but a freshly baked
-  AMI carries a cosign that cannot verify what this pipeline signs until the first deploy
-  runs. Align that pin before relying on the AMI standalone.
+  `deploy/host/setup.sh` pins the same `v2.6.5` at AMI bake time, so a freshly baked custom image
+  can verify what this pipeline signs without waiting for the first deploy to correct it.
 - A failed pull leaves the previous container running and untouched.
 
 ## Rotating the KMS key
 
-`deploy/host/cosign.pub` is the public half of `awskms:///alias/podman-demo-cosign`, kept
-in the repo because `policy.json` accepts only a PEM key, not a KMS reference. The deploy
-workflow diffs the committed key against the live KMS key and fails if they differ. After
-rotating, re-export it:
+Nothing to do. No key of any kind is committed to this repository.
 
-```bash
-cosign public-key --key awskms:///alias/podman-demo-cosign > deploy/host/cosign.pub
-```
+`policy.json` accepts only a PEM key on disk, not a KMS reference, so the host still needs
+the public half of `awskms:///alias/podman-demo-cosign` at `/etc/containers/cosign.pub`.
+The deploy workflow exports it fresh from KMS on every run and the playbook installs it,
+so the host always holds the public half of the key that actually signed the image. A
+rotation is picked up by the next deploy with no manual re-export and no drift to detect.
+
+The playbook refuses to run if `cosign_public_key_path` is not supplied — there is no
+committed key to silently fall back to.
 
 ## Requirements
 

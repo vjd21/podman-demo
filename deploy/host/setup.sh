@@ -16,7 +16,10 @@ if ! command -v aws &> /dev/null; then
 fi
 
 echo "Installing cosign..."
-COSIGN_VERSION="v3.1.3"
+# Must match the pin in .github/workflows/deploy.yml and deploy/ansible/deploy.yml.
+# cosign v3 writes OCI 1.1 referrers that containers/image cannot read, so a host
+# baked with v3 cannot verify what this pipeline signs.
+COSIGN_VERSION="v2.6.5"
 if ! command -v cosign &> /dev/null || ! cosign version 2>/dev/null | grep -q "$COSIGN_VERSION"; then
   cd /tmp
   curl -fsSL -O "https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-amd64"

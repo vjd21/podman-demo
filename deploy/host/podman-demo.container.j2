@@ -8,7 +8,7 @@ ExecStartPre=/usr/bin/env REGISTRY_AUTH_FILE=/root/.docker/config.json /usr/loca
 
 [Container]
 Image={{ new_image_ref }}
-PublishPort=8081:80
+PublishPort={{ app_port | default(8081) }}:80
 NoNewPrivileges=true
 ReadOnly=true
 SecurityLabelDisable=true

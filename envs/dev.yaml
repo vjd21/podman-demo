@@ -1,0 +1,11 @@
+# One file per environment. The filename is the environment name and selects the
+# Terraform state key, so dev and any later environment never share state.
+#
+# Tenants live inside an environment. Today they are separated by instance,
+# security group and name tag within a single AWS account; the intended future
+# step is one AWS account per tenant.
+
+tenants:
+  demo:
+    instance_type: t3.micro
+    port: 8081
