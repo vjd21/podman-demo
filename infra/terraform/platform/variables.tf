@@ -38,3 +38,21 @@ variable "state_bucket" {
   type        = string
   default     = "aws-terraform-statefiles-bucket"
 }
+
+variable "github_owner_id" {
+  description = <<-EOT
+    Numeric GitHub owner id. This organisation issues OIDC tokens using the
+    immutable-id subject format (owner@ownerID/repo@repoID), so the trust policy
+    must match that literal string as well as the human-readable one. Verified
+    against the sub claim CloudTrail recorded on a real AssumeRoleWithWebIdentity
+    attempt -- do not guess it.
+  EOT
+  type        = string
+  default     = "112800271"
+}
+
+variable "github_repo_id" {
+  description = "Numeric GitHub repository id. See github_owner_id."
+  type        = string
+  default     = "1356067443"
+}
