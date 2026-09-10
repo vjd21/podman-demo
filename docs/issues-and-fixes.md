@@ -303,6 +303,84 @@ replace as well, since a replace is `["delete","create"]` on one address:
 | `["delete"]` | tenant removed from the environment file | fail the run |
 | `["delete","create"]` | resource replaced | warn, allow |
 
+### 14. The SSM transfer bucket could not be created
+
+```
+AccessDenied: ... is not authorized to perform: s3:CreateBucket
+```
+
+Replacing the externally-owned `sriharis3bucket` with one this project owns
+meant the platform stack now created a bucket — but `infra-provision-role` had
+**no S3 bucket permissions at all**, only object permissions on the state
+prefix. The same class of mistake as issue 9: the policy fitted the previous
+design.
+
+**Fix:** a `ManageSsmTransferBucket` statement scoped to that one bucket ARN.
+
+### 15. …and then could not be read back
+
+```
+AccessDenied: ... is not authorized to perform: s3:GetBucketCORS
+```
+
+The grant added in 14 was an enumerated list of fifteen actions. After creating
+a bucket the AWS provider reads back every sub-resource it knows about — ACL,
+policy, tagging, versioning, encryption, lifecycle, logging, website, CORS,
+replication, object lock, ownership controls — and the list was missing CORS.
+Adding actions one failure at a time is unwinnable, and a provider upgrade that
+reads one more sub-resource breaks it again.
+
+**Fix:** `s3:Get*` and `s3:Put*`, scoped to that one bucket ARN written in full.
+
+The principle: an IAM policy has two dials, and they are not equally knowable.
+The **resource** is yours and stable; the **action list** is a guess about a
+tool's internals. Tighten the resource. Only enumerate actions where they differ
+in danger — `kms:Sign` versus `kms:ScheduleKeyDeletion` genuinely do, reading a
+bucket's CORS versus its tagging does not. A bucket-level ARN grants nothing on
+the objects inside it.
+
+### 16. A deadlock the pipeline could not escape
+
+The fix in 15 never applied. Every run failed identically:
+
+```
+terraform refresh  → reads the bucket → GetBucketCORS denied
+                   → apply aborts
+                   → the policy granting Get* is never written
+                   → the next run does exactly the same
+```
+
+Terraform refreshes state before planning, so it needed a permission that only
+the aborted apply could grant. Re-running could not have helped, however many
+times.
+
+Confirmed by reading the live policy after the failure: still the old
+enumerated list. **A failure that repeats identically means nothing changed** —
+which rules out anything self-resolving, propagation included.
+
+**Fix:** the platform job reconciles the CI role's own policy first, before
+anything that depends on it:
+
+```bash
+terraform apply -auto-approve -target=aws_iam_role_policy.infra_provision
+```
+
+`-target` limits the refresh to that resource and its dependencies. The policy
+uses a literal bucket ARN rather than a reference to the bucket resource, so
+this pass touches nothing the role cannot already read.
+
+This is not a workaround. A stack that manages the permissions of the role
+applying it is inherently ordered, and the ordering was missing.
+
+### 17. The plan ran before the grant took effect
+
+With the deadlock broken, the same run still failed on `GetBucketCORS` — the
+plan started seconds after the policy was written, and IAM is eventually
+consistent. Distinguishable from 16 only by checking the live policy: this time
+the grant *was* there.
+
+**Fix:** a 20-second wait after the self-policy apply, on runs that change it.
+
 ---
 
 ## What to check first, next time
@@ -313,6 +391,10 @@ replace as well, since a replace is `["delete","create"]` on one address:
   skipped is not failed, and GitHub propagates skips transitively.
 - **After changing what Terraform creates, re-derive the IAM policy.** Three
   separate failures here were permissions that fitted the previous design.
+- **A failure that repeats identically means nothing changed.** Check the live
+  state after a failure before re-running. If the resource still looks the way
+  it did, the run never got far enough to change it, and no amount of retrying
+  will help — that distinguishes a deadlock from eventual consistency.
 - **A hardcoded id is a future outage.** The AMI, the state key prefix, and the
   certificate identity all broke because a literal in one file had to agree with
   something in another. Derive it, or put it next to what it refers to.
