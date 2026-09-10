@@ -44,6 +44,11 @@ jobs:
 
   application:
     needs: infrastructure
+    # An explicit condition is required, not optional. custom-image is skipped
+    # unless a rebuild is asked for, and GitHub's implicit `success()` skips a
+    # job when any ancestor was skipped -- not just a direct dependency. Without
+    # this the deploy is silently skipped and the run still reports success.
+    if: always() && !cancelled() && needs.infrastructure.result == 'success'
     uses: ./.github/workflows/3-app.yml
     with:
       environment: ${{ inputs.environment }}
