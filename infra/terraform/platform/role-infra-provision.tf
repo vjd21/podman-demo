@@ -171,27 +171,23 @@ data "aws_iam_policy_document" "infra_provision" {
     resources = ["*"]
   }
 
-  # Create and manage the SSM transfer bucket this project owns. Scoped to that
-  # one bucket -- not s3:* on "*".
+  # Create and manage the SSM transfer bucket this project owns.
+  #
+  # Get*/Put* rather than an enumerated list: after creating a bucket the AWS
+  # provider reads back every sub-resource it knows about -- CORS, website,
+  # logging, replication, object lock, ownership controls and more -- and an
+  # enumerated list fails on whichever one was forgotten. Blast radius is held
+  # by the resource, not the action: this is one bucket, named in full, and
+  # bucket-level ARNs do not grant access to objects.
   statement {
     sid    = "ManageSsmTransferBucket"
     effect = "Allow"
     actions = [
       "s3:CreateBucket",
       "s3:DeleteBucket",
-      "s3:GetBucketLocation",
-      "s3:GetBucketPolicy",
-      "s3:GetBucketAcl",
-      "s3:GetBucketTagging",
-      "s3:GetBucketVersioning",
-      "s3:GetBucketPublicAccessBlock",
-      "s3:PutBucketPublicAccessBlock",
-      "s3:GetEncryptionConfiguration",
-      "s3:PutEncryptionConfiguration",
-      "s3:GetLifecycleConfiguration",
-      "s3:PutLifecycleConfiguration",
-      "s3:PutBucketTagging",
       "s3:ListBucket",
+      "s3:Get*",
+      "s3:Put*",
     ]
     resources = ["arn:aws:s3:::podman-demo-ssm-transfer-${data.aws_caller_identity.current.account_id}"]
   }
