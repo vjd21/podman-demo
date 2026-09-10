@@ -40,6 +40,26 @@ data "aws_iam_policy_document" "infra_provision" {
     resources = ["*"]
   }
 
+  # Each tenant gets its own security group, so opening a port for one cannot
+  # expose another. Managing them needs create/delete plus rule authorisation --
+  # RunInstances alone is not enough.
+  statement {
+    sid    = "TenantSecurityGroups"
+    effect = "Allow"
+    actions = [
+      "ec2:CreateSecurityGroup",
+      "ec2:DeleteSecurityGroup",
+      "ec2:AuthorizeSecurityGroupIngress",
+      "ec2:AuthorizeSecurityGroupEgress",
+      "ec2:RevokeSecurityGroupIngress",
+      "ec2:RevokeSecurityGroupEgress",
+      "ec2:ModifySecurityGroupRules",
+      "ec2:UpdateSecurityGroupRuleDescriptionsIngress",
+      "ec2:UpdateSecurityGroupRuleDescriptionsEgress",
+    ]
+    resources = ["*"]
+  }
+
   statement {
     sid    = "PackerAmiLifecycle"
     effect = "Allow"
