@@ -34,6 +34,10 @@ env:
   GHCR_REPOSITORY: vjd21/podman-demo
   IMAGE_VERSION: v1.0.${{ github.run_number }}
   COSIGN_KMS_KEY: awskms:///alias/podman-demo-cosign
+  # Fulcio puts this workflow's own path in the certificate SAN, so the host's
+  # ExecStartPre must pin exactly this string. Defined here, next to the file it
+  # names, so a rename is caught in one place.
+  COSIGN_IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/3-app.yml@refs/heads/main
 
 jobs:
   build-and-sign:
@@ -152,7 +156,8 @@ jobs:
           ansible-playbook -i "${{ runner.temp }}/inventory.aws_ec2.yml" deploy/ansible/deploy.yml \
             -e "new_image_ref=${{ env.GHCR_REGISTRY }}/${{ env.GHCR_REPOSITORY }}@${{ needs.build-and-sign.outputs.digest }}" \
             -e "cosign_public_key_path=${{ runner.temp }}/cosign.pub" \
-            -e "app_port=${{ matrix.port }}"
+            -e "app_port=${{ matrix.port }}" \
+            -e "cosign_identity=${{ env.COSIGN_IDENTITY }}"
 
       - name: Summarise
         run: |

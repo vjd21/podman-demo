@@ -42,6 +42,17 @@
       args:
         executable: /bin/bash
 
+    - name: Require the signing identity the Quadlet unit must pin
+      assert:
+        that:
+          - cosign_identity is defined
+          - cosign_identity | length > 0
+        fail_msg: >-
+          cosign_identity must be the Fulcio certificate identity of the workflow
+          that signed the image. It is passed in by the pipeline rather than
+          hardcoded here, because renaming the workflow file silently breaks the
+          ExecStartPre gate otherwise -- the image pulls, then refuses to start.
+
     - name: Require a public key exported from KMS at run time
       assert:
         that:
