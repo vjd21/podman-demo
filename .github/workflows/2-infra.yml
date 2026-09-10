@@ -1,0 +1,126 @@
+name: 2 · Infrastructure
+run-name: "infra · ${{ inputs.environment }} · ${{ inputs.action || 'apply' }}"
+
+# Applies envs/<environment>.yaml: one host per tenant. Emits the deploy targets
+# for the application pipeline, straight from `terraform output` -- no script.
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        default: dev
+      ami_id:
+        description: "AMI from the custom-image pipeline. Blank uses the Terraform default."
+        type: string
+        default: ""
+    outputs:
+      targets:
+        description: "JSON list of {tenant, name, instance_id, port}."
+        value: ${{ jobs.terraform.outputs.targets }}
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: string
+        default: dev
+      ami_id:
+        type: string
+        default: ""
+      action:
+        type: choice
+        options: [plan, apply]
+        default: plan
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # Account-wide and shared by every environment: the OIDC provider, both CI
+  # roles, the cosign KMS key and the host instance profile. Its own state,
+  # applied first because the environment stack depends on the instance profile
+  # it creates.
+  platform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::148737623247:role/infra-provision-role
+          aws-region: us-east-2
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
+
+      - name: Apply the platform stack
+        working-directory: infra/terraform/platform
+        run: |
+          terraform init
+          terraform plan -out=tfplan
+          if [ "${{ inputs.action }}" != "plan" ]; then
+            terraform apply -auto-approve tfplan
+          fi
+
+  terraform:
+    needs: platform
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.out.outputs.targets }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::148737623247:role/infra-provision-role
+          aws-region: us-east-2
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
+
+      # One state file per environment.
+      - name: Init
+        working-directory: infra/terraform
+        run: |
+          terraform init \
+            -backend-config="key=podman-demo/${{ inputs.environment }}/infra.tfstate"
+
+      - name: Plan
+        working-directory: infra/terraform
+        run: |
+          ARGS="-var=environment=${{ inputs.environment }}"
+          if [ -n "${{ inputs.ami_id }}" ]; then ARGS="$ARGS -var=ami_id=${{ inputs.ami_id }}"; fi
+          terraform plan $ARGS -out=tfplan
+
+      # Removing a tenant from the environment file must never terminate a live
+      # host. prevent_destroy makes Terraform refuse; this fails the run early
+      # with a clear message instead of a plan error.
+      - name: Refuse a plan containing deletions
+        working-directory: infra/terraform
+        run: |
+          set -euo pipefail
+          DELETES=$(terraform show -json tfplan \
+            | jq -r '[.resource_changes[]? | select(.change.actions|index("delete")) | .address] | join(" ")')
+          if [ -n "$DELETES" ]; then
+            echo "::error::Plan would delete: $DELETES -- apply skipped. Removing a tenant is deliberate."
+            exit 1
+          fi
+
+      - name: Apply
+        if: inputs.action != 'plan'
+        working-directory: infra/terraform
+        run: terraform apply -auto-approve tfplan
+
+      - name: Emit deploy targets
+        id: out
+        if: inputs.action != 'plan'
+        working-directory: infra/terraform
+        run: |
+          set -euo pipefail
+          TARGETS=$(terraform output -json targets | jq -c .)
+          echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
+          echo "### ${{ inputs.environment }}" >> "$GITHUB_STEP_SUMMARY"
+          terraform output -json targets | jq -r '.[] | "- \(.name) · \(.instance_id) · port \(.port)"' \
+            >> "$GITHUB_STEP_SUMMARY"

@@ -37,7 +37,7 @@ source "amazon-ebs" "podman_host" {
   associate_public_ip_address = true
   ssh_username                = "ubuntu"
   ami_name                    = "podman-demo-host-{{timestamp}}"
-  ami_description             = "Golden AMI: podman + cosign + podman-demo policy config pre-installed"
+  ami_description             = "Custom image: podman + cosign + podman-demo policy config pre-installed"
 
   source_ami_filter {
     filters = {

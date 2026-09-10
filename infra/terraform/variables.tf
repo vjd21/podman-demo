@@ -1,40 +1,34 @@
-variable "instance_name" {
-  description = "Value for the EC2 instance's Name tag -- also used by deploy/ansible/aws_ec2.yml's dynamic inventory filter to target this instance for deploys."
+variable "environment" {
+  description = "Environment name. Selects envs/<environment>.yaml and the Terraform state key."
   type        = string
+  default     = "dev"
 }
 
 variable "ami_id" {
-  description = "AMI to launch, e.g. the output of the Packer build workflow. Defaults to the AMI currently running on e1087 if not supplied."
+  description = "AMI to launch -- the output of the custom-image pipeline."
   type        = string
   default     = "ami-04afd14ab83ca1834"
 }
 
-variable "instance_type" {
-  description = "EC2 instance type."
+variable "default_instance_type" {
+  description = "Instance type for tenants that do not set one."
   type        = string
   default     = "t3.micro"
 }
 
 variable "subnet_id" {
-  description = "Subnet to launch into -- reuses the same subnet as the existing e1087 instance."
+  description = "Subnet to launch into."
   type        = string
   default     = "subnet-06b6ab6f608584887"
 }
 
-variable "security_group_id" {
-  description = "Security group to attach -- reuses the same one as the existing e1087 instance (sg-08000f3eb1834032d)."
-  type        = string
-  default     = "sg-08000f3eb1834032d"
-}
-
 variable "iam_instance_profile" {
-  description = "IAM instance profile to attach -- reuses the same one as the existing e1087 instance."
+  description = <<-EOT
+    IAM instance profile to attach. Created by the platform stack
+    (infra/terraform/platform) and carries only AmazonSSMManagedInstanceCore. The
+    previous default was "admin", whose role held AdministratorAccess -- a
+    container escape on the host was full account compromise.
+  EOT
   type        = string
-  default     = "admin"
-}
-
-variable "key_name" {
-  description = "SSH key pair name -- not required for deploys (Ansible connects via SSM), kept only for parity/manual debugging access matching e1087."
-  type        = string
-  default     = "vkey"
+  default     = "podman-demo-host"
 }

@@ -10,14 +10,15 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 
-# Packer -- build.log is written by the Build Golden AMI workflow
+# Packer -- build.log is written by the custom-image workflow
 build.log
 
-# Cosign / local key material -- never commit a private key.
-# deploy/host/cosign.pub is the KMS *public* half and IS tracked on purpose.
+# Cosign / key material -- no key is committed, public halves included.
+# The KMS public key is exported at deploy time by .github/workflows/deploy.yml.
 *.key
 cosign.key
 *.pem
+*.pub
 
 # Editor / OS
 .DS_Store

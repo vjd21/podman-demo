@@ -42,9 +42,18 @@
       args:
         executable: /bin/bash
 
+    - name: Require a public key exported from KMS at run time
+      assert:
+        that:
+          - cosign_public_key_path is defined
+        fail_msg: >-
+          cosign_public_key_path must point at a public key exported from KMS by
+          the caller (cosign public-key --key awskms:///alias/...). No key is
+          committed to this repository, so there is no fallback to fall back to.
+
     - name: Upload Cosign public key to tmp
       copy:
-        src: ../host/cosign.pub
+        src: "{{ cosign_public_key_path }}"
         dest: /tmp/cosign.pub
         mode: "0644"
 
@@ -75,15 +84,6 @@
         sudo mkdir -p /etc/containers/registries.d
         sudo install -m 0644 /tmp/ghcr.yaml /etc/containers/registries.d/ghcr.yaml
         rm -f /tmp/ghcr.yaml
-
-    - name: Authenticate Podman with GHCR
-      when: ghcr_token is defined
-      no_log: true
-      shell: |
-        sudo mkdir -p /root/.docker
-        echo "{{ ghcr_token }}" | sudo podman login ghcr.io \
-          --username "{{ ghcr_username }}" --password-stdin \
-          --authfile /root/.docker/config.json
 
     - name: Pull image (podman policy verifies the KMS signature)
       register: pull_result
