@@ -48,7 +48,7 @@ data "aws_iam_policy_document" "host" {
     sid       = "SsmFileTransfer"
     effect    = "Allow"
     actions   = ["s3:GetObject", "s3:PutObject"]
-    resources = ["arn:aws:s3:::${var.ssm_transfer_bucket}/*"]
+    resources = ["${aws_s3_bucket.ssm_transfer.arn}/*"]
   }
 }
 

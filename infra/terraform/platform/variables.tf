@@ -4,12 +4,6 @@ variable "region" {
   default     = "us-east-2"
 }
 
-variable "account_id" {
-  description = "AWS account id. Only used to build ARNs."
-  type        = string
-  default     = "148737623247"
-}
-
 variable "github_repo" {
   description = "owner/name of the only repository allowed to assume the CI roles."
   type        = string
@@ -25,12 +19,6 @@ variable "deploy_ref" {
   EOT
   type        = string
   default     = "refs/heads/main"
-}
-
-variable "ssm_transfer_bucket" {
-  description = "Existing S3 bucket the Ansible aws_ssm connection plugin uses to move files to the host."
-  type        = string
-  default     = "sriharis3bucket"
 }
 
 variable "state_bucket" {

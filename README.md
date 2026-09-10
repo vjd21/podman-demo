@@ -10,12 +10,13 @@ different layers, and either one failing stops the deploy.
 | Path | What lives there |
 |---|---|
 | `app/` | The application image: `Containerfile` and `index.html`. |
-| `infra/packer/` | Packer template that bakes the custom image (podman + cosign + policy pre-installed). |
+| `infra/packer/` | `podman-host.pkr.hcl` and the `provision-host.sh` it runs, which bakes the custom image (podman + cosign + policy pre-installed). |
 | `envs/` | One YAML file per environment (`dev.yaml`), listing that environment's tenants. |
-| `infra/terraform/` | The environment stack: one security group and one host per tenant, via `for_each`. S3 remote state, `use_lockfile` for locking. Separate state from the platform stack, so destroying the instance cannot take the CI roles or the signing key with it. |
+| `infra/terraform/environment/` | The environment stack: one security group and one host per tenant, via `for_each`. S3 remote state, `use_lockfile` for locking. Separate state from the platform stack, so destroying the instance cannot take the CI roles or the signing key with it. |
 | `infra/terraform/platform/` | Account-wide: the GitHub OIDC provider, both CI roles and their trust policies, the cosign KMS key, and the least-privilege host instance profile. Adopts the existing hand-made resources via `import` blocks, so no bootstrap run and no console work. |
-| `deploy/ansible/` | `deploy.yml`, the deploy playbook. The SSM inventory is generated per tenant by the deploy workflow, not committed. |
-| `deploy/host/` | Files installed onto the host: `policy.json`, `registries.d/ghcr.yaml`, the `podman-demo.container.j2` Quadlet template, and `setup.sh` for AMI bake time. No key material — the cosign public key is exported from KMS at deploy time. |
+| `deploy/ansible/` | `site.yml`, the deploy playbook. The SSM inventory is generated per tenant by the application pipeline, not committed. |
+| `deploy/host/containers/` | Installed to `/etc/containers/` on the host: `policy.json` and `registries.d/ghcr.yaml`. The directory mirrors its destination. |
+| `deploy/host/quadlet/` | The `podman-demo.container.j2` systemd unit template. No key material — the cosign public key is exported from KMS at deploy time. |
 | `docs/` | Why keyless signing cannot be enforced by podman's `policy.json`, and a record of every issue hit building this pipeline with the cause and fix for each. |
 | `.github/workflows/` | The four workflows below. |
 
@@ -27,8 +28,8 @@ Three stages, each one's output passed as the next one's input, plus
 | Stage | Takes | Gives |
 |---|---|---|
 | **1 · Custom Image** — `1-custom-image.yml` | — | `ami_id` |
-| **2 · Infrastructure** — `2-infra.yml` | `environment`, `ami_id` | `targets` |
-| **3 · Application** — `3-app.yml` | `environment`, `targets` | the running container |
+| **2 · Infrastructure** — `2-infrastructure.yml` | `environment`, `ami_id` | `targets` |
+| **3 · Application** — `3-application.yml` | `environment`, `targets` | the running container |
 
 Each stage is also runnable on its own with `workflow_dispatch`, so a code-only
 change is just stage 3 and a tenant added to `envs/dev.yaml` is stage 2 then 3.
@@ -71,7 +72,7 @@ rebuild should not quietly terminate a live host. New tenants get the newest
 image. To roll an existing host onto it, do it deliberately:
 
 ```bash
-terraform -chdir=infra/terraform apply -replace='aws_instance.host["demo"]'
+terraform -chdir=infra/terraform/environment apply -replace='aws_instance.host["demo"]'
 ```
 
 That still needs `prevent_destroy` lifted for that resource first -- which is
@@ -125,7 +126,7 @@ Other invariants worth keeping:
 - Cosign must be **v2.x** everywhere. v3 writes OCI 1.1 referrers that containers/image
   cannot read, so the format written must be the format verified. CI
   (`.github/workflows/deploy.yml`) and the deploy playbook both pin `v2.6.5`.
-  `deploy/host/setup.sh` pins the same `v2.6.5` at AMI bake time, so a freshly baked custom image
+  `infra/packer/provision-host.sh` pins the same `v2.6.5` at AMI bake time, so a freshly baked custom image
   can verify what this pipeline signs without waiting for the first deploy to correct it.
 - A failed pull leaves the previous container running and untouched.
 

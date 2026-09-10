@@ -5,6 +5,11 @@ under Terraform, and restructuring the workflows into three chained pipelines.
 Each entry gives the symptom as it actually appeared, the real cause, and the
 fix, so the same error text can be found by searching this file.
 
+File and workflow names in this document are the ones in use at the time each
+issue occurred. Several have since been renamed -- `3-app.yml` is now
+`3-application.yml`, and `deploy/ansible/deploy.yml` is now `site.yml`. The
+error text is left exactly as it appeared so it can still be searched for.
+
 Two themes run through almost all of it:
 
 - **Tightening a scope without re-deriving what the scope needs.** Most pipeline

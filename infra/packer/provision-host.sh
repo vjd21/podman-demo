@@ -16,7 +16,7 @@ if ! command -v aws &> /dev/null; then
 fi
 
 echo "Installing cosign..."
-# Must match the pin in .github/workflows/deploy.yml and deploy/ansible/deploy.yml.
+# Must match the pin in .github/workflows/3-application.yml and deploy/ansible/site.yml.
 # cosign v3 writes OCI 1.1 referrers that containers/image cannot read, so a host
 # baked with v3 cannot verify what this pipeline signs.
 COSIGN_VERSION="v2.6.5"
@@ -43,7 +43,7 @@ echo "================================================================"
 echo "Host bootstrap complete!"
 echo "The podman-demo.container quadlet unit is not installed by this"
 echo "script -- it is rendered and deployed by the Ansible playbook"
-echo "(deploy/ansible/deploy.yml) on every pipeline run, pinned to the image"
+echo "(deploy/ansible/site.yml) on every pipeline run, pinned to the image"
 echo "digest that was just built, signed (cosign keyless), and verified."
 echo "Run the GitHub Actions 'Build and Deploy' workflow next to deploy."
 echo "================================================================"

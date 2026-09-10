@@ -17,3 +17,8 @@ output "cosign_kms_key_alias" {
   description = "Alias cosign signs with. Matches COSIGN_KMS_KEY in deploy.yml."
   value       = aws_kms_alias.cosign.name
 }
+
+output "ssm_transfer_bucket" {
+  description = "Bucket the Ansible aws_ssm connection stages files through."
+  value       = aws_s3_bucket.ssm_transfer.id
+}

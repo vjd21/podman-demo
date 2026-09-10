@@ -37,7 +37,7 @@ env:
   # Fulcio puts this workflow's own path in the certificate SAN, so the host's
   # ExecStartPre must pin exactly this string. Defined here, next to the file it
   # names, so a rename is caught in one place.
-  COSIGN_IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/3-app.yml@refs/heads/main
+  COSIGN_IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/3-application.yml@refs/heads/main
 
 jobs:
   build-and-sign:
@@ -134,6 +134,13 @@ jobs:
 
       # Generated, not committed: every value is derived from the target, so
       # there is nothing to keep in sync by hand.
+      - name: Resolve the SSM transfer bucket
+        id: aws
+        run: |
+          set -euo pipefail
+          ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+          echo "bucket=podman-demo-ssm-transfer-$ACCOUNT" >> "$GITHUB_OUTPUT"
+
       - name: Generate inventory
         run: |
           cat > "${{ runner.temp }}/inventory.aws_ec2.yml" <<EOF
@@ -146,14 +153,14 @@ jobs:
           compose:
             ansible_connection: "'amazon.aws.aws_ssm'"
             ansible_aws_ssm_region: "'us-east-2'"
-            ansible_aws_ssm_bucket_name: "'sriharis3bucket'"
+            ansible_aws_ssm_bucket_name: "'${{ steps.aws.outputs.bucket }}'"
           hostnames:
             - instance-id
           EOF
 
       - name: Deploy over SSM
         run: |
-          ansible-playbook -i "${{ runner.temp }}/inventory.aws_ec2.yml" deploy/ansible/deploy.yml \
+          ansible-playbook -i "${{ runner.temp }}/inventory.aws_ec2.yml" deploy/ansible/site.yml \
             -e "new_image_ref=${{ env.GHCR_REGISTRY }}/${{ env.GHCR_REPOSITORY }}@${{ needs.build-and-sign.outputs.digest }}" \
             -e "cosign_public_key_path=${{ runner.temp }}/cosign.pub" \
             -e "app_port=${{ matrix.port }}" \

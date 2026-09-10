@@ -135,7 +135,7 @@ data "aws_iam_policy_document" "infra_provision" {
       "iam:RemoveRoleFromInstanceProfile",
       "iam:TagInstanceProfile",
     ]
-    resources = ["arn:aws:iam::${var.account_id}:instance-profile/${local.host_profile_name}"]
+    resources = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:instance-profile/${local.host_profile_name}"]
   }
 
   statement {
@@ -169,6 +169,31 @@ data "aws_iam_policy_document" "infra_provision" {
     effect    = "Allow"
     actions   = ["kms:ListAliases"]
     resources = ["*"]
+  }
+
+  # Create and manage the SSM transfer bucket this project owns. Scoped to that
+  # one bucket -- not s3:* on "*".
+  statement {
+    sid    = "ManageSsmTransferBucket"
+    effect = "Allow"
+    actions = [
+      "s3:CreateBucket",
+      "s3:DeleteBucket",
+      "s3:GetBucketLocation",
+      "s3:GetBucketPolicy",
+      "s3:GetBucketAcl",
+      "s3:GetBucketTagging",
+      "s3:GetBucketVersioning",
+      "s3:GetBucketPublicAccessBlock",
+      "s3:PutBucketPublicAccessBlock",
+      "s3:GetEncryptionConfiguration",
+      "s3:PutEncryptionConfiguration",
+      "s3:GetLifecycleConfiguration",
+      "s3:PutLifecycleConfiguration",
+      "s3:PutBucketTagging",
+      "s3:ListBucket",
+    ]
+    resources = ["arn:aws:s3:::podman-demo-ssm-transfer-${data.aws_caller_identity.current.account_id}"]
   }
 
   # Terraform remote state for both stacks under this prefix.

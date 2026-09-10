@@ -4,11 +4,27 @@ variable "environment" {
   default     = "dev"
 }
 
+variable "region" {
+  description = "Region to operate in."
+  type        = string
+  default     = "us-east-2"
+}
+
 variable "ami_id" {
   description = <<-EOT
     AMI to launch, from the custom-image pipeline. Leave empty to use the most
     recent podman-demo-host-* image this account owns. Empty is the default on
     purpose -- a pinned id silently rots when the image is deregistered.
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "subnet_id" {
+  description = <<-EOT
+    Subnet to launch into. Leave empty to use the default subnet of the default
+    VPC, which is where these hosts already live. Set it only when a specific
+    subnet is required.
   EOT
   type        = string
   default     = ""
@@ -20,17 +36,11 @@ variable "default_instance_type" {
   default     = "t3.micro"
 }
 
-variable "subnet_id" {
-  description = "Subnet to launch into."
-  type        = string
-  default     = "subnet-06b6ab6f608584887"
-}
-
 variable "iam_instance_profile" {
   description = <<-EOT
-    IAM instance profile to attach. Created by the platform stack
-    (infra/terraform/platform) and carries only AmazonSSMManagedInstanceCore. The
-    previous default was "admin", whose role held AdministratorAccess -- a
+    IAM instance profile to attach. Created by the platform stack and carries
+    only AmazonSSMManagedInstanceCore plus S3 access to the SSM transfer bucket.
+    The previous default was "admin", whose role held AdministratorAccess -- a
     container escape on the host was full account compromise.
   EOT
   type        = string

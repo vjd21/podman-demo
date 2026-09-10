@@ -79,8 +79,8 @@ data "aws_iam_policy_document" "deploy" {
       "s3:GetBucketLocation",
     ]
     resources = [
-      "arn:aws:s3:::${var.ssm_transfer_bucket}",
-      "arn:aws:s3:::${var.ssm_transfer_bucket}/*",
+      aws_s3_bucket.ssm_transfer.arn,
+      "${aws_s3_bucket.ssm_transfer.arn}/*",
     ]
   }
 }

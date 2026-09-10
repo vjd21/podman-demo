@@ -82,13 +82,13 @@ jobs:
 
       # One state file per environment.
       - name: Init
-        working-directory: infra/terraform
+        working-directory: infra/terraform/environment
         run: |
           terraform init \
             -backend-config="key=dev/podman-demo/${{ inputs.environment }}/infra.tfstate"
 
       - name: Plan
-        working-directory: infra/terraform
+        working-directory: infra/terraform/environment
         run: |
           ARGS="-var=environment=${{ inputs.environment }}"
           if [ -n "${{ inputs.ami_id }}" ]; then ARGS="$ARGS -var=ami_id=${{ inputs.ami_id }}"; fi
@@ -101,7 +101,7 @@ jobs:
       # A replace is ["delete","create"] on the same address and is legitimate,
       # so match the action list exactly rather than testing for membership.
       - name: Refuse a plan that removes a tenant
-        working-directory: infra/terraform
+        working-directory: infra/terraform/environment
         run: |
           set -euo pipefail
           PLAN=$(terraform show -json tfplan)
@@ -123,13 +123,13 @@ jobs:
 
       - name: Apply
         if: inputs.action != 'plan'
-        working-directory: infra/terraform
+        working-directory: infra/terraform/environment
         run: terraform apply -auto-approve tfplan
 
       - name: Emit deploy targets
         id: out
         if: inputs.action != 'plan'
-        working-directory: infra/terraform
+        working-directory: infra/terraform/environment
         run: |
           set -euo pipefail
           TARGETS=$(terraform output -json targets | jq -c .)

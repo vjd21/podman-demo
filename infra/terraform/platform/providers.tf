@@ -1,4 +1,4 @@
-# Platform stack: the account-wide IAM and KMS resources the pipelines run on.
+# Platform stack: the account-wide IAM, KMS and S3 resources the pipelines run on.
 # Separate state from the app stack (../) so destroying an EC2 instance can never
 # take the CI roles or the signing key with it.
 terraform {
@@ -23,4 +23,17 @@ terraform {
 
 provider "aws" {
   region = var.region
+
+  default_tags {
+    tags = {
+      Project   = "podman-demo"
+      ManagedBy = "terraform"
+    }
+  }
 }
+
+# Asked of AWS rather than written down. The account id in particular appeared
+# in five places across this repo; none of them can now drift.
+data "aws_caller_identity" "current" {}
+
+data "aws_region" "current" {}

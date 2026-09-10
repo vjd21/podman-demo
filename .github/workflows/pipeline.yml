@@ -34,7 +34,7 @@ jobs:
     needs: custom-image
     # Runs whether or not the custom image was rebuilt.
     if: always() && !cancelled() && (needs.custom-image.result == 'success' || needs.custom-image.result == 'skipped')
-    uses: ./.github/workflows/2-infra.yml
+    uses: ./.github/workflows/2-infrastructure.yml
     with:
       environment: ${{ inputs.environment }}
       ami_id: ${{ needs.custom-image.outputs.ami_id || '' }}
@@ -49,7 +49,7 @@ jobs:
     # job when any ancestor was skipped -- not just a direct dependency. Without
     # this the deploy is silently skipped and the run still reports success.
     if: always() && !cancelled() && needs.infrastructure.result == 'success'
-    uses: ./.github/workflows/3-app.yml
+    uses: ./.github/workflows/3-application.yml
     with:
       environment: ${{ inputs.environment }}
       targets: ${{ needs.infrastructure.outputs.targets }}
