@@ -5,9 +5,13 @@ variable "environment" {
 }
 
 variable "ami_id" {
-  description = "AMI to launch -- the output of the custom-image pipeline."
+  description = <<-EOT
+    AMI to launch, from the custom-image pipeline. Leave empty to use the most
+    recent podman-demo-host-* image this account owns. Empty is the default on
+    purpose -- a pinned id silently rots when the image is deregistered.
+  EOT
   type        = string
-  default     = "ami-04afd14ab83ca1834"
+  default     = ""
 }
 
 variable "default_instance_type" {

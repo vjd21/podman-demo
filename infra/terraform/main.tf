@@ -1,4 +1,29 @@
+# When the custom-image pipeline does not hand over an AMI -- because it was
+# skipped, or the stack is applied on its own -- fall back to the most recent
+# image Packer baked, rather than to a hardcoded id. A pinned default goes stale
+# silently: the previous one had been deregistered, and Terraform failed with
+# "collecting instance settings: empty result", which names neither the AMI nor
+# the fact that it no longer exists.
+data "aws_ami" "custom" {
+  count = var.ami_id == "" ? 1 : 0
+
+  most_recent = true
+  owners      = ["self"]
+
+  filter {
+    name   = "name"
+    values = ["podman-demo-host-*"]
+  }
+
+  filter {
+    name   = "state"
+    values = ["available"]
+  }
+}
+
 locals {
+  ami_id = var.ami_id != "" ? var.ami_id : data.aws_ami.custom[0].id
+
   env_file = "${path.module}/../../envs/${var.environment}.yaml"
   tenants  = yamldecode(file(local.env_file)).tenants
 
@@ -40,7 +65,7 @@ resource "aws_security_group" "tenant" {
 resource "aws_instance" "host" {
   for_each = local.tenants
 
-  ami                    = var.ami_id
+  ami                    = local.ami_id
   instance_type          = try(each.value.instance_type, var.default_instance_type)
   subnet_id              = var.subnet_id
   vpc_security_group_ids = [aws_security_group.tenant[each.key].id]
