@@ -16,7 +16,7 @@ different layers, and either one failing stops the deploy.
 | `infra/terraform/platform/` | Account-wide: the GitHub OIDC provider, both CI roles and their trust policies, the cosign KMS key, and the least-privilege host instance profile. Adopts the existing hand-made resources via `import` blocks, so no bootstrap run and no console work. |
 | `deploy/ansible/` | `deploy.yml`, the deploy playbook. The SSM inventory is generated per tenant by the deploy workflow, not committed. |
 | `deploy/host/` | Files installed onto the host: `policy.json`, `registries.d/ghcr.yaml`, the `podman-demo.container.j2` Quadlet template, and `setup.sh` for AMI bake time. No key material — the cosign public key is exported from KMS at deploy time. |
-| `docs/` | Why keyless signing cannot be enforced by podman's `policy.json`, and how to tell the three stacked failure modes apart. |
+| `docs/` | Why keyless signing cannot be enforced by podman's `policy.json`, and a record of every issue hit building this pipeline with the cause and fix for each. |
 | `.github/workflows/` | The four workflows below. |
 
 ## Pipelines
