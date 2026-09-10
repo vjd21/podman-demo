@@ -69,6 +69,12 @@ jobs:
           # the policy alone, so it touches nothing it lacks permission to read.
           if [ "${{ inputs.action }}" != "plan" ]; then
             terraform apply -auto-approve -target=aws_iam_role_policy.infra_provision
+
+            # IAM is eventually consistent. The plan below refreshes resources
+            # the grant above may have just authorised, and a plan starting a
+            # second later can still be denied. Waiting here costs 20s on a run
+            # that changes the policy and nothing on a run that does not.
+            sleep 20
           fi
 
           terraform plan -out=tfplan
