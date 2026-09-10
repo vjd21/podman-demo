@@ -9,8 +9,10 @@ terraform {
   }
 
   # key is supplied per environment by the infra pipeline:
-  #   -backend-config="key=podman-demo/<environment>/infra.tfstate"
-  # so dev and any later environment never share state.
+  #   -backend-config="key=dev/podman-demo/<environment>/infra.tfstate"
+  # so dev and any later environment never share state. The dev/podman-demo/
+  # prefix is fixed: infra-provision-role's S3 grant is scoped to exactly that,
+  # so a key outside it fails init with a 403 on HeadObject.
   backend "s3" {
     bucket       = "aws-terraform-statefiles-bucket"
     region       = "us-east-2"

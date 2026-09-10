@@ -85,7 +85,7 @@ jobs:
         working-directory: infra/terraform
         run: |
           terraform init \
-            -backend-config="key=podman-demo/${{ inputs.environment }}/infra.tfstate"
+            -backend-config="key=dev/podman-demo/${{ inputs.environment }}/infra.tfstate"
 
       - name: Plan
         working-directory: infra/terraform

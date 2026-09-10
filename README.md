@@ -52,7 +52,7 @@ pipelines need, so stage 2 manages the platform stack from here on.
 ## Environments and tenants
 
 `envs/<name>.yaml` is one environment. Each has its own Terraform state key
-(`podman-demo/<name>/infra.tfstate`), so environments never share state.
+(`dev/podman-demo/<name>/infra.tfstate`), so environments never share state.
 
 Tenants sit inside an environment and are separated by instance, security group
 and Name tag (`<environment>-<tenant>`) within a single AWS account. Adding one
