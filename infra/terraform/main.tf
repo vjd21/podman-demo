@@ -92,9 +92,16 @@ resource "aws_instance" "host" {
     Tenant      = each.key
   }
 
-  # Removing a tenant from the environment file must not silently terminate a
-  # running host. Deleting one is deliberate: remove this block, then apply.
   lifecycle {
+    # Removing a tenant from the environment file must not silently terminate a
+    # running host. Deleting one is deliberate: remove this block, then apply.
     prevent_destroy = true
+
+    # A new custom image would otherwise force this instance to be replaced --
+    # which is a destroy, and destroying a running host is never something an
+    # image rebuild should do on its own. New tenants get the newest image;
+    # existing hosts are rolled deliberately (see README), and the application
+    # pipeline updates what actually runs on them anyway.
+    ignore_changes = [ami]
   }
 }

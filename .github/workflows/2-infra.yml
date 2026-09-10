@@ -97,15 +97,28 @@ jobs:
       # Removing a tenant from the environment file must never terminate a live
       # host. prevent_destroy makes Terraform refuse; this fails the run early
       # with a clear message instead of a plan error.
-      - name: Refuse a plan containing deletions
+      # Only a bare delete means a tenant was removed from the environment file.
+      # A replace is ["delete","create"] on the same address and is legitimate,
+      # so match the action list exactly rather than testing for membership.
+      - name: Refuse a plan that removes a tenant
         working-directory: infra/terraform
         run: |
           set -euo pipefail
-          DELETES=$(terraform show -json tfplan \
-            | jq -r '[.resource_changes[]? | select(.change.actions|index("delete")) | .address] | join(" ")')
-          if [ -n "$DELETES" ]; then
-            echo "::error::Plan would delete: $DELETES -- apply skipped. Removing a tenant is deliberate."
+          PLAN=$(terraform show -json tfplan)
+
+          REMOVED=$(echo "$PLAN" | jq -r '
+            [ .resource_changes[]? | select(.change.actions == ["delete"]) | .address ] | join(" ")')
+          if [ -n "$REMOVED" ]; then
+            echo "::error::Plan would remove: $REMOVED -- apply skipped. Tearing down a tenant is deliberate."
             exit 1
+          fi
+
+          REPLACED=$(echo "$PLAN" | jq -r '
+            [ .resource_changes[]? | select(.change.actions | sort == ["create","delete"]) | .address ] | join(" ")')
+          if [ -n "$REPLACED" ]; then
+            echo "::warning::Plan replaces: $REPLACED"
+            echo "### ⚠️ Replacing resources" >> "$GITHUB_STEP_SUMMARY"
+            echo "\`$REPLACED\`" >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Apply

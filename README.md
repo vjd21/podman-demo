@@ -65,6 +65,18 @@ tenants:
     port: 8081
 ```
 
+Rebuilding the custom image does **not** replace running hosts -- `ami` is in
+`ignore_changes`, because replacing an instance is a destroy and an image
+rebuild should not quietly terminate a live host. New tenants get the newest
+image. To roll an existing host onto it, do it deliberately:
+
+```bash
+terraform -chdir=infra/terraform apply -replace='aws_instance.host["demo"]'
+```
+
+That still needs `prevent_destroy` lifted for that resource first -- which is
+the point: it is a decision, not a side effect.
+
 Removing a tenant does **not** destroy it. `prevent_destroy` is set on the
 instances and stage 2 fails the run if the plan contains any deletion, so a bad
 merge or a revert cannot delete a live host. Tearing one down is deliberate.
