@@ -57,7 +57,20 @@ jobs:
       - name: Apply the platform stack
         working-directory: infra/terraform/platform
         run: |
+          set -euo pipefail
           terraform init
+
+          # This stack manages the permissions of the very role that applies it,
+          # so the role's own policy has to be reconciled before anything that
+          # depends on it. Otherwise a resource the role cannot yet read blocks
+          # the refresh, and the policy that would grant that read never gets
+          # written -- a deadlock CI cannot escape on its own, because every
+          # re-run fails at the same refresh. -target keeps this first pass to
+          # the policy alone, so it touches nothing it lacks permission to read.
+          if [ "${{ inputs.action }}" != "plan" ]; then
+            terraform apply -auto-approve -target=aws_iam_role_policy.infra_provision
+          fi
+
           terraform plan -out=tfplan
           if [ "${{ inputs.action }}" != "plan" ]; then
             terraform apply -auto-approve tfplan
