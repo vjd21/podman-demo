@@ -43,11 +43,11 @@ unauthenticated. If a secret is ever genuinely needed it goes in AWS Secrets
 Manager, read at run time by whichever workload needs it through that workload's
 own IAM role. Nothing creates one today, so nothing is granted access to one.
 
-`bootstrap.yml` runs once, ever. `infra-provision-role` has no IAM write
-permissions and cannot grant them to itself, so that job borrows `deploy-role`
-— which still carries `AdministratorAccess` — and the platform apply's final act
-is detaching it. The hole closes itself, and the workflow cannot run again.
-Delete it afterwards.
+The platform stack was originally applied by a one-time `bootstrap.yml`, which
+borrowed `deploy-role` while it still held `AdministratorAccess` and used it to
+apply the stack that strips that very policy. That has run; the workflow is
+deleted. `infra-provision-role` now holds the scoped IAM permissions the
+pipelines need, so stage 2 manages the platform stack from here on.
 
 ## Environments and tenants
 
